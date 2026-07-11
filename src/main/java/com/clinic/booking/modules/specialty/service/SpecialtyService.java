@@ -2,9 +2,8 @@ package com.clinic.booking.modules.specialty.service;
 
 import java.util.List;
 
-import com.clinic.booking.modules.specialty.entity.Specialty;
+import com.clinic.booking.modules.specialty.dto.response.SpecialtyResponse;
 
 public interface SpecialtyService {
-
-    List<Specialty> getAll();
+    List<SpecialtyResponse> getAll();
 }

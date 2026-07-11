@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.clinic.booking.modules.specialty.entity.Specialty;
+import com.clinic.booking.modules.specialty.dto.response.SpecialtyResponse;
 import com.clinic.booking.modules.specialty.service.SpecialtyService;
 
 @RestController
@@ -19,7 +19,7 @@ public class SpecialtyController {
     }
 
     @GetMapping
-    public List<Specialty> getAll() {
+    public List<SpecialtyResponse> getAll() {
         return specialtyService.getAll();
     }
 }
