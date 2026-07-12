@@ -107,4 +107,19 @@ public class SpecialtyServiceImpl implements SpecialtyService {
 
         return specialtyMapper.toResponse(updatedSpecialty);
     }
+
+    // DELETE /api/specialties/{id}
+    // → Controller nhận id
+    // → gọi specialtyService.deleteSpecialty(id)
+    // → Service tìm Specialty theo id
+    // → không tồn tại: throw SpecialtyNotFoundException
+    // → tồn tại: repository.delete(...)
+    // → trả về HTTP 204 No Content
+    @Override
+    public void deleteSpecialty(Long id) {
+        Specialty specialty = specialtyRepository.findById(id)
+                .orElseThrow(() -> new SpecialtyNotFoundException(id));
+
+        specialtyRepository.delete(specialty);
+    }
 }
