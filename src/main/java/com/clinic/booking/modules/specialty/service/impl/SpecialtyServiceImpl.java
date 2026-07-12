@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 import com.clinic.booking.modules.specialty.dto.request.SpecialtyCreateRequest;
+import com.clinic.booking.modules.specialty.dto.request.SpecialtyUpdateRequest;
 import com.clinic.booking.modules.specialty.dto.response.SpecialtyResponse;
 import com.clinic.booking.modules.specialty.entity.Specialty;
 import com.clinic.booking.modules.specialty.exception.SpecialtyAlreadyExistsException;
@@ -62,5 +63,48 @@ public class SpecialtyServiceImpl implements SpecialtyService {
                 .orElseThrow(() -> new SpecialtyNotFoundException(id));
 
         return specialtyMapper.toResponse(specialty);
+    }
+
+    /*
+     * Nhận id và SpecialtyUpdateRequest
+     * ↓
+     * Tìm Specialty theo id
+     * ↓
+     * Không tồn tại → SpecialtyNotFoundException
+     * ↓
+     * Trim tên mới
+     * ↓
+     * Kiểm tra tên có thay đổi hay không
+     * ↓
+     * Nếu thay đổi, kiểm tra duplicate
+     * ↓
+     * Trùng tên → SpecialtyAlreadyExistsException
+     * ↓
+     * Gán tên mới vào entity
+     * ↓
+     * Repository.save()
+     * ↓
+     * Mapper chuyển Entity thành SpecialtyResponse
+     * ↓
+     * Trả kết quả
+     */
+    @Override
+    public SpecialtyResponse updateSpecialty(Long id, SpecialtyUpdateRequest request) {
+        Specialty specialty = specialtyRepository.findById(id)
+                .orElseThrow(() -> new SpecialtyNotFoundException(id));
+
+        String normalizedName = request.name().trim();
+
+        boolean nameChanged = !specialty.getName().equalsIgnoreCase(normalizedName);
+
+        if (nameChanged && specialtyRepository.existsByNameIgnoreCase(normalizedName)) {
+            throw new SpecialtyAlreadyExistsException(normalizedName);
+        }
+
+        specialty.setName(normalizedName);
+
+        Specialty updatedSpecialty = specialtyRepository.save(specialty);
+
+        return specialtyMapper.toResponse(updatedSpecialty);
     }
 }

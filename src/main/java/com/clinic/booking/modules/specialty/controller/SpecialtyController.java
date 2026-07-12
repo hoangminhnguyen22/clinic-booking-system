@@ -7,12 +7,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.clinic.booking.modules.specialty.dto.request.SpecialtyCreateRequest;
+import com.clinic.booking.modules.specialty.dto.request.SpecialtyUpdateRequest;
 import com.clinic.booking.modules.specialty.dto.response.SpecialtyResponse;
 import com.clinic.booking.modules.specialty.service.SpecialtyService;
 
@@ -52,5 +54,28 @@ public class SpecialtyController {
     @GetMapping("/{id}")
     public ResponseEntity<SpecialtyResponse> getSpecialtyById(@PathVariable Long id) {
         return ResponseEntity.ok(specialtyService.getSpecialtyById(id));
+    }
+
+    // PUT /api/specialties/1
+    // ↓
+    // SpecialtyController
+    // ↓
+    // Validation SpecialtyUpdateRequest
+    // ↓
+    // SpecialtyService.updateSpecialty()
+    // ↓
+    // SpecialtyServiceImpl
+    // ↓
+    // SpecialtyRepository
+    // ↓
+    // Database
+    // ↓
+    // SpecialtyResponse
+    @PutMapping("/{id}")
+    public SpecialtyResponse updateSpecialty(
+            @PathVariable Long id,
+            @Valid @RequestBody SpecialtyUpdateRequest request) {
+
+        return specialtyService.updateSpecialty(id, request);
     }
 }
