@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 
 import com.clinic.booking.modules.specialty.exception.SpecialtyAlreadyExistsException;
+import com.clinic.booking.modules.specialty.exception.SpecialtyNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -55,6 +56,23 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
+                .body(response);
+    }
+
+    @ExceptionHandler(SpecialtyNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleSpecialtyNotFound(
+            SpecialtyNotFoundException exception,
+            WebRequest request) {
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.NOT_FOUND.value(),
+                HttpStatus.NOT_FOUND.getReasonPhrase(),
+                exception.getMessage(),
+                request.getDescription(false).replace("uri=", ""));
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
                 .body(response);
     }
 }

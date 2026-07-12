@@ -8,6 +8,7 @@ import com.clinic.booking.modules.specialty.dto.request.SpecialtyCreateRequest;
 import com.clinic.booking.modules.specialty.dto.response.SpecialtyResponse;
 import com.clinic.booking.modules.specialty.entity.Specialty;
 import com.clinic.booking.modules.specialty.exception.SpecialtyAlreadyExistsException;
+import com.clinic.booking.modules.specialty.exception.SpecialtyNotFoundException;
 import com.clinic.booking.modules.specialty.mapper.SpecialtyMapper;
 import com.clinic.booking.modules.specialty.repository.SpecialtyRepository;
 import com.clinic.booking.modules.specialty.service.SpecialtyService;
@@ -53,5 +54,13 @@ public class SpecialtyServiceImpl implements SpecialtyService {
         Specialty savedSpecialty = specialtyRepository.save(specialty);
 
         return specialtyMapper.toResponse(savedSpecialty);
+    }
+
+    @Override
+    public SpecialtyResponse getSpecialtyById(Long id) {
+        Specialty specialty = specialtyRepository.findById(id)
+                .orElseThrow(() -> new SpecialtyNotFoundException(id));
+
+        return specialtyMapper.toResponse(specialty);
     }
 }
