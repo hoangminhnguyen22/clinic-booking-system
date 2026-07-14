@@ -13,6 +13,8 @@ import org.springframework.web.context.request.WebRequest;
 
 import com.clinic.booking.modules.specialty.exception.SpecialtyAlreadyExistsException;
 import com.clinic.booking.modules.specialty.exception.SpecialtyNotFoundException;
+import com.clinic.booking.modules.doctor.exception.DoctorNotFoundException;
+import com.clinic.booking.modules.doctor.exception.DuplicateDoctorEmailException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -73,6 +75,40 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
+                .body(response);
+    }
+
+    @ExceptionHandler(DoctorNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleDoctorNotFound(
+            DoctorNotFoundException exception,
+            WebRequest request) {
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.NOT_FOUND.value(),
+                HttpStatus.NOT_FOUND.getReasonPhrase(),
+                exception.getMessage(),
+                request.getDescription(false).replace("uri=", ""));
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(response);
+    }
+
+    @ExceptionHandler(DuplicateDoctorEmailException.class)
+    public ResponseEntity<ApiErrorResponse> handleDuplicateDoctorEmail(
+            DuplicateDoctorEmailException exception,
+            WebRequest request) {
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                exception.getMessage(),
+                request.getDescription(false).replace("uri=", ""));
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
                 .body(response);
     }
 }
