@@ -32,3 +32,6 @@ build/
 ### VS Code ###
 .vscode/
 note.txt
+_bmad/
+_bmad-output/
+.agents/
