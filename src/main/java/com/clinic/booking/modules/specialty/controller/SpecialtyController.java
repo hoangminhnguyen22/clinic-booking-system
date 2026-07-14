@@ -2,6 +2,7 @@ package com.clinic.booking.modules.specialty.controller;
 
 import java.util.List;
 
+import org.springframework.lang.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -53,7 +54,7 @@ public class SpecialtyController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<SpecialtyResponse> getSpecialtyById(@PathVariable Long id) {
+    public ResponseEntity<SpecialtyResponse> getSpecialtyById(@PathVariable @NonNull Long id) {
         return ResponseEntity.ok(specialtyService.getSpecialtyById(id));
     }
 
@@ -74,7 +75,7 @@ public class SpecialtyController {
     // SpecialtyResponse
     @PutMapping("/{id}")
     public SpecialtyResponse updateSpecialty(
-            @PathVariable Long id,
+            @PathVariable @NonNull Long id,
             @Valid @RequestBody SpecialtyUpdateRequest request) {
 
         return specialtyService.updateSpecialty(id, request);
@@ -82,7 +83,7 @@ public class SpecialtyController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteSpecialty(@PathVariable Long id) {
+    public void deleteSpecialty(@PathVariable @NonNull Long id) {
         specialtyService.deleteSpecialty(id);
     }
 }

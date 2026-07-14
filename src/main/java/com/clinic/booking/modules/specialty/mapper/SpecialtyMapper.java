@@ -1,6 +1,7 @@
 package com.clinic.booking.modules.specialty.mapper;
 
 import org.springframework.stereotype.Component;
+import org.springframework.lang.NonNull;
 
 import com.clinic.booking.modules.specialty.dto.request.SpecialtyCreateRequest;
 import com.clinic.booking.modules.specialty.dto.response.SpecialtyResponse;
@@ -14,6 +15,7 @@ public class SpecialtyMapper {
                 specialty.getName());
     }
 
+    @NonNull
     public Specialty toEntity(SpecialtyCreateRequest request) {
         return new Specialty(
                 request.name());

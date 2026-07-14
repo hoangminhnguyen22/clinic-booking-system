@@ -3,6 +3,7 @@ package com.clinic.booking.modules.specialty.service.impl;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
+import org.springframework.lang.NonNull;
 
 import com.clinic.booking.modules.specialty.dto.request.SpecialtyCreateRequest;
 import com.clinic.booking.modules.specialty.dto.request.SpecialtyUpdateRequest;
@@ -58,7 +59,7 @@ public class SpecialtyServiceImpl implements SpecialtyService {
     }
 
     @Override
-    public SpecialtyResponse getSpecialtyById(Long id) {
+    public SpecialtyResponse getSpecialtyById(@NonNull Long id) {
         Specialty specialty = specialtyRepository.findById(id)
                 .orElseThrow(() -> new SpecialtyNotFoundException(id));
 
@@ -89,7 +90,7 @@ public class SpecialtyServiceImpl implements SpecialtyService {
      * Trả kết quả
      */
     @Override
-    public SpecialtyResponse updateSpecialty(Long id, SpecialtyUpdateRequest request) {
+    public SpecialtyResponse updateSpecialty(@NonNull Long id, SpecialtyUpdateRequest request) {
         Specialty specialty = specialtyRepository.findById(id)
                 .orElseThrow(() -> new SpecialtyNotFoundException(id));
 
@@ -116,7 +117,8 @@ public class SpecialtyServiceImpl implements SpecialtyService {
     // → tồn tại: repository.delete(...)
     // → trả về HTTP 204 No Content
     @Override
-    public void deleteSpecialty(Long id) {
+    @SuppressWarnings("null")
+    public void deleteSpecialty(@NonNull Long id) {
         Specialty specialty = specialtyRepository.findById(id)
                 .orElseThrow(() -> new SpecialtyNotFoundException(id));
 
