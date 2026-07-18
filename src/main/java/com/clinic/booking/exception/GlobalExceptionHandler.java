@@ -15,6 +15,9 @@ import com.clinic.booking.modules.specialty.exception.SpecialtyAlreadyExistsExce
 import com.clinic.booking.modules.specialty.exception.SpecialtyNotFoundException;
 import com.clinic.booking.modules.doctor.exception.DoctorNotFoundException;
 import com.clinic.booking.modules.doctor.exception.DuplicateDoctorEmailException;
+import com.clinic.booking.modules.doctor_schedule.exception.InvalidScheduleTimeException;
+import com.clinic.booking.modules.doctor_schedule.exception.OverlappingDoctorScheduleException;
+import com.clinic.booking.modules.doctor_schedule.exception.DoctorScheduleNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -109,6 +112,56 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
+                .body(response);
+    }
+
+    @ExceptionHandler(InvalidScheduleTimeException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidScheduleTime(
+            InvalidScheduleTimeException exception,
+            WebRequest request) {
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                exception.getMessage(),
+                request.getDescription(false).replace("uri=", ""));
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+
+    @ExceptionHandler(OverlappingDoctorScheduleException.class)
+    public ResponseEntity<ApiErrorResponse> handleOverlappingDoctorSchedule(
+            OverlappingDoctorScheduleException exception,
+            WebRequest request) {
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                exception.getMessage(),
+                request.getDescription(false).replace("uri=", ""));
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(response);
+    }
+
+    @ExceptionHandler(DoctorScheduleNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleDoctorScheduleNotFound(
+            DoctorScheduleNotFoundException exception,
+            WebRequest request) {
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.NOT_FOUND.value(),
+                HttpStatus.NOT_FOUND.getReasonPhrase(),
+                exception.getMessage(),
+                request.getDescription(false).replace("uri=", ""));
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
                 .body(response);
     }
 }
