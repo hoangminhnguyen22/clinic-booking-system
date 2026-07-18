@@ -84,7 +84,7 @@ class AvailabilityServiceImplTest {
     @Test
     void shouldReturnNoSlotsWhenDoctorIsInactive() {
         Long doctorId = 3L;
-        LocalDate date = LocalDate.now().minusDays(1);
+        LocalDate date = LocalDate.now().plusDays(1);
 
         Doctor doctor = new Doctor();
         doctor.setId(doctorId);
