@@ -38,6 +38,9 @@ public class Doctor {
     @JoinColumn(name = "specialty_id", nullable = false)
     private Specialty specialty;
 
+    @Column(nullable = false, columnDefinition = "integer default 30")
+    private int appointmentDurationMinutes = 30;
+
     public Doctor() {
     }
 
@@ -95,5 +98,13 @@ public class Doctor {
 
     public void setSpecialty(Specialty specialty) {
         this.specialty = specialty;
+    }
+
+    public void setAppointmentDurationMinutes(int appointmentDurationMinutes) {
+        this.appointmentDurationMinutes = appointmentDurationMinutes;
+    }
+
+    public int getAppointmentDurationMinutes() {
+        return appointmentDurationMinutes;
     }
 }

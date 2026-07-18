@@ -24,7 +24,8 @@ public class DoctorMapper {
                 doctor.getBio(),
                 doctor.isActive(),
                 doctor.getSpecialty().getId(),
-                doctor.getSpecialty().getName());
+                doctor.getSpecialty().getName(),
+                doctor.getAppointmentDurationMinutes());
     }
 
     @NonNull
@@ -40,6 +41,10 @@ public class DoctorMapper {
         doctor.setBio(request.bio());
         doctor.setActive(true);
         doctor.setSpecialty(specialty);
+        if (request.appointmentDurationMinutes() != null) {
+            doctor.setAppointmentDurationMinutes(
+                    request.appointmentDurationMinutes());
+        }
 
         return doctor;
     }
@@ -55,5 +60,6 @@ public class DoctorMapper {
         doctor.setBio(request.bio());
         doctor.setActive(request.active());
         doctor.setSpecialty(specialty);
+        doctor.setAppointmentDurationMinutes(request.appointmentDurationMinutes());
     }
 }

@@ -8,5 +8,6 @@ public record DoctorResponse(
         String bio,
         boolean active,
         Long specialtyId,
-        String specialtyName) {
+        String specialtyName,
+        Integer appointmentDurationMinutes) {
 }
