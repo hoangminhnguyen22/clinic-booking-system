@@ -18,6 +18,7 @@ import com.clinic.booking.modules.doctor.exception.DuplicateDoctorEmailException
 import com.clinic.booking.modules.doctor_schedule.exception.InvalidScheduleTimeException;
 import com.clinic.booking.modules.doctor_schedule.exception.OverlappingDoctorScheduleException;
 import com.clinic.booking.modules.doctor_schedule.exception.DoctorScheduleNotFoundException;
+import com.clinic.booking.modules.availability.exception.PastDateAvailabilityException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -162,6 +163,23 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
+                .body(response);
+    }
+
+    @ExceptionHandler(PastDateAvailabilityException.class)
+    public ResponseEntity<ApiErrorResponse> handlePastDateAvailability(
+            PastDateAvailabilityException exception,
+            WebRequest request) {
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                exception.getMessage(),
+                request.getDescription(false).replace("uri=", ""));
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
                 .body(response);
     }
 }
