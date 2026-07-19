@@ -1,6 +1,6 @@
 # 🏥 Clinic Appointment Booking System
 
-> A full-stack Clinic Appointment Booking System built with **Java Spring Boot** and **React**, designed to simulate a real-world enterprise application following modern backend development practices.
+> A full-stack Clinic Appointment Booking System built with **Java Spring Boot** and **React** and **React Native**, designed to simulate a real-world enterprise application following modern backend development practices.
 
 > 🚧 **Project Status:** Active Development
 
