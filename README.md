@@ -16,6 +16,20 @@ The main goal is to strengthen Java Backend development skills while building a 
 
 ---
 
+## 🌐 Project Ecosystem
+
+This backend is part of a planned multi-platform clinic booking ecosystem:
+
+| Application | Technology | Repository | Status |
+|---|---|---|---|
+| Backend API | Java, Spring Boot | `clinic-booking-system` | 🚧 In Progress |
+| Web Application | React, TypeScript | `clinic-booking-web` | ⏳ Planned |
+| Mobile Application | React Native, TypeScript | `clinic-booking-mobile` | ⏳ Planned |
+
+The web and mobile applications will consume the REST APIs provided by this backend.
+
+---
+
 # 🎯 Project Goals
 
 * Learn Java & Spring Boot through a real-world project
@@ -118,6 +132,18 @@ Used for:
 * shadcn/ui
 * React Hook Form
 * Zod
+
+## Mobile
+
+* React Native
+* TypeScript
+* Expo
+* React Navigation
+* Axios
+* TanStack Query
+* React Hook Form
+* Zod
+* AsyncStorage
 
 ## DevOps
 
@@ -262,6 +288,7 @@ Examples:
 | Redis Integration      | ⏳ Planned   |
 | MongoDB Integration    | ⏳ Planned   |
 | React Frontend         | ⏳ Planned   |
+| React Native Mobile    | ⏳ Planned   |
 | Docker                 | ⏳ Planned   |
 | Testing                | ⏳ Planned   |
 | CI/CD                  | ⏳ Planned   |
@@ -285,18 +312,19 @@ The following technologies are planned after the core system is completed.
 
 # 📊 Current Progress
 
-| Component     | Status         |
-| ------------- | -------------- |
+| Component     | Status          |
+| ------------- | --------------  |
 | Planning      | ✅ Completed    |
 | Architecture  | ✅ Completed    |
-| Backend       | 🚧 In Progress |
+| Backend       | 🚧 In Progress  |
 | Frontend      | ⏳ Planned      |
+| Mobile        | ⏳ Planned      |
 | PostgreSQL    | ⏳ Planned      |
 | MongoDB       | ⏳ Planned      |
 | Redis         | ⏳ Planned      |
 | Docker        | ⏳ Planned      |
 | Testing       | ⏳ Planned      |
-| Documentation | 🚧 In Progress |
+| Documentation | 🚧 In Progress  |
 
 ---
 
