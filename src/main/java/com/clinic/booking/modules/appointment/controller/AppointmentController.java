@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.clinic.booking.modules.appointment.dto.request.AppointmentCreateRequest;
+import com.clinic.booking.modules.appointment.dto.request.AppointmentStatusUpdateRequest;
 import com.clinic.booking.modules.appointment.dto.response.AppointmentResponse;
 import com.clinic.booking.modules.appointment.service.AppointmentService;
 
@@ -47,5 +48,13 @@ public class AppointmentController {
             @PathVariable("appointmentId") Long appointmentId) {
 
         return appointmentService.cancelAppointment(appointmentId);
+    }
+
+    @PatchMapping("/{appointmentId}/status")
+    public AppointmentResponse updateAppointmentStatus(
+            @PathVariable("appointmentId") Long appointmentId,
+            @Valid @RequestBody AppointmentStatusUpdateRequest request) {
+
+        return appointmentService.updateAppointmentStatus(appointmentId, request);
     }
 }

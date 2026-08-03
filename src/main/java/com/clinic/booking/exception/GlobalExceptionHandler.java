@@ -20,6 +20,9 @@ import com.clinic.booking.modules.doctor_schedule.exception.OverlappingDoctorSch
 import com.clinic.booking.modules.doctor_schedule.exception.DoctorScheduleNotFoundException;
 import com.clinic.booking.modules.availability.exception.PastDateAvailabilityException;
 import com.clinic.booking.modules.appointment.exception.AppointmentSlotUnavailableException;
+import com.clinic.booking.modules.appointment.exception.AppointmentStatusTargetNotAllowedException;
+import com.clinic.booking.modules.appointment.exception.AppointmentStatusUpdateBeforeStartTimeException;
+import com.clinic.booking.modules.appointment.exception.AppointmentStatusUpdateNotAllowedException;
 import com.clinic.booking.modules.appointment.exception.AppointmentCancellationDeadlinePassedException;
 import com.clinic.booking.modules.appointment.exception.AppointmentCancellationNotAllowedException;
 import com.clinic.booking.modules.appointment.exception.AppointmentInPastException;
@@ -259,6 +262,57 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AppointmentCancellationDeadlinePassedException.class)
     public ResponseEntity<ApiErrorResponse> handleAppointmentCancellationDeadlinePassed(
             AppointmentCancellationDeadlinePassedException exception,
+            WebRequest request) {
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                exception.getMessage(),
+                request.getDescription(false).replace("uri=", ""));
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(response);
+    }
+
+    @ExceptionHandler(AppointmentStatusUpdateBeforeStartTimeException.class)
+    public ResponseEntity<ApiErrorResponse> handleAppointmentStatusUpdateBeforeStartTime(
+            AppointmentStatusUpdateBeforeStartTimeException exception,
+            WebRequest request) {
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                exception.getMessage(),
+                request.getDescription(false).replace("uri=", ""));
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(response);
+    }
+
+    @ExceptionHandler(AppointmentStatusUpdateNotAllowedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAppointmentStatusUpdateNotAllowed(
+            AppointmentStatusUpdateNotAllowedException exception,
+            WebRequest request) {
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                exception.getMessage(),
+                request.getDescription(false).replace("uri=", ""));
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(response);
+    }
+
+    @ExceptionHandler(AppointmentStatusTargetNotAllowedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAppointmentStatusTargetNotAllowed(
+            AppointmentStatusTargetNotAllowedException exception,
             WebRequest request) {
 
         ApiErrorResponse response = new ApiErrorResponse(

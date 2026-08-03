@@ -16,12 +16,15 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import com.clinic.booking.modules.appointment.dto.request.AppointmentCreateRequest;
+import com.clinic.booking.modules.appointment.dto.request.AppointmentStatusUpdateRequest;
 import com.clinic.booking.modules.appointment.dto.response.AppointmentResponse;
 import com.clinic.booking.modules.appointment.entity.Appointment;
 import com.clinic.booking.modules.appointment.entity.AppointmentStatus;
@@ -30,6 +33,9 @@ import com.clinic.booking.modules.appointment.exception.AppointmentCancellationN
 import com.clinic.booking.modules.appointment.exception.AppointmentInPastException;
 import com.clinic.booking.modules.appointment.exception.AppointmentNotFoundException;
 import com.clinic.booking.modules.appointment.exception.AppointmentSlotUnavailableException;
+import com.clinic.booking.modules.appointment.exception.AppointmentStatusTargetNotAllowedException;
+import com.clinic.booking.modules.appointment.exception.AppointmentStatusUpdateBeforeStartTimeException;
+import com.clinic.booking.modules.appointment.exception.AppointmentStatusUpdateNotAllowedException;
 import com.clinic.booking.modules.appointment.mapper.AppointmentMapper;
 import com.clinic.booking.modules.appointment.repository.AppointmentRepository;
 import com.clinic.booking.modules.availability.dto.response.AvailableSlotResponse;
@@ -455,6 +461,190 @@ class AppointmentServiceImplTest {
         assertThrows(
                 AppointmentCancellationDeadlinePassedException.class,
                 () -> appointmentService.cancelAppointment(appointmentId));
+
+        assertEquals(AppointmentStatus.BOOKED, appointment.getStatus());
+
+        verify(appointmentRepository).findById(appointmentId);
+        verifyNoMoreInteractions(appointmentRepository);
+        verifyNoInteractions(appointmentMapper);
+    }
+
+    @Test
+    void shouldUpdateBookedAppointmentToCompleted() {
+        Long appointmentId = 1L;
+        LocalDate appointmentDate = LocalDate.now().minusDays(1);
+        LocalTime startTime = LocalTime.of(8, 0);
+
+        Appointment appointment = new Appointment();
+        appointment.setId(appointmentId);
+        appointment.setAppointmentDate(appointmentDate);
+        appointment.setStartTime(startTime);
+        appointment.setStatus(AppointmentStatus.BOOKED);
+
+        AppointmentStatusUpdateRequest request = new AppointmentStatusUpdateRequest(
+                AppointmentStatus.COMPLETED);
+
+        AppointmentResponse expectedResponse = new AppointmentResponse(
+                appointmentId,
+                3L,
+                10L,
+                appointmentDate,
+                startTime,
+                LocalTime.of(8, 30),
+                AppointmentStatus.COMPLETED);
+
+        when(appointmentRepository.findById(appointmentId))
+                .thenReturn(Optional.of(appointment));
+
+        when(appointmentMapper.toResponse(appointment))
+                .thenReturn(expectedResponse);
+
+        AppointmentResponse actualResponse = appointmentService
+                .updateAppointmentStatus(appointmentId, request);
+
+        assertEquals(expectedResponse, actualResponse);
+        assertEquals(AppointmentStatus.COMPLETED, appointment.getStatus());
+
+        verify(appointmentRepository).findById(appointmentId);
+        verifyNoMoreInteractions(appointmentRepository);
+        verify(appointmentMapper).toResponse(appointment);
+    }
+
+    @Test
+    void shouldUpdateBookedAppointmentToNoShow() {
+        Long appointmentId = 1L;
+        LocalDate appointmentDate = LocalDate.now().minusDays(1);
+        LocalTime startTime = LocalTime.of(8, 0);
+
+        Appointment appointment = new Appointment();
+        appointment.setId(appointmentId);
+        appointment.setAppointmentDate(appointmentDate);
+        appointment.setStartTime(startTime);
+        appointment.setStatus(AppointmentStatus.BOOKED);
+
+        AppointmentStatusUpdateRequest request = new AppointmentStatusUpdateRequest(
+                AppointmentStatus.NO_SHOW);
+
+        AppointmentResponse expectedResponse = new AppointmentResponse(
+                appointmentId,
+                3L,
+                10L,
+                appointmentDate,
+                startTime,
+                LocalTime.of(8, 30),
+                AppointmentStatus.NO_SHOW);
+
+        when(appointmentRepository.findById(appointmentId))
+                .thenReturn(Optional.of(appointment));
+
+        when(appointmentMapper.toResponse(appointment))
+                .thenReturn(expectedResponse);
+
+        AppointmentResponse actualResponse = appointmentService
+                .updateAppointmentStatus(appointmentId, request);
+
+        assertEquals(expectedResponse, actualResponse);
+        assertEquals(AppointmentStatus.NO_SHOW, appointment.getStatus());
+
+        verify(appointmentRepository).findById(appointmentId);
+        verifyNoMoreInteractions(appointmentRepository);
+        verify(appointmentMapper).toResponse(appointment);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenAppointmentDoesNotExistDuringStatusUpdate() {
+        Long appointmentId = 999L;
+
+        AppointmentStatusUpdateRequest request = new AppointmentStatusUpdateRequest(
+                AppointmentStatus.COMPLETED);
+
+        when(appointmentRepository.findById(appointmentId))
+                .thenReturn(Optional.empty());
+
+        assertThrows(
+                AppointmentNotFoundException.class,
+                () -> appointmentService.updateAppointmentStatus(appointmentId, request));
+
+        verify(appointmentRepository).findById(appointmentId);
+        verifyNoMoreInteractions(appointmentRepository);
+        verifyNoInteractions(appointmentMapper);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = AppointmentStatus.class, names = { "BOOKED", "CANCELLED" })
+    void shouldThrowExceptionWhenRequestedTargetStatusIsNotCompletedOrNoShow(
+            AppointmentStatus requestedStatus) {
+
+        Long appointmentId = 1L;
+
+        Appointment appointment = new Appointment();
+        appointment.setId(appointmentId);
+        appointment.setStatus(AppointmentStatus.BOOKED);
+
+        AppointmentStatusUpdateRequest request = new AppointmentStatusUpdateRequest(
+                requestedStatus);
+
+        when(appointmentRepository.findById(appointmentId))
+                .thenReturn(Optional.of(appointment));
+
+        assertThrows(
+                AppointmentStatusTargetNotAllowedException.class,
+                () -> appointmentService.updateAppointmentStatus(appointmentId, request));
+
+        assertEquals(AppointmentStatus.BOOKED, appointment.getStatus());
+
+        verify(appointmentRepository).findById(appointmentId);
+        verifyNoMoreInteractions(appointmentRepository);
+        verifyNoInteractions(appointmentMapper);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = AppointmentStatus.class, mode = EnumSource.Mode.EXCLUDE, names = "BOOKED")
+    void shouldThrowExceptionWhenAppointmentIsNotBookedDuringStatusUpdate(
+            AppointmentStatus currentStatus) {
+
+        Long appointmentId = 1L;
+
+        Appointment appointment = new Appointment();
+        appointment.setId(appointmentId);
+        appointment.setStatus(currentStatus);
+
+        AppointmentStatusUpdateRequest request = new AppointmentStatusUpdateRequest(
+                AppointmentStatus.COMPLETED);
+
+        when(appointmentRepository.findById(appointmentId))
+                .thenReturn(Optional.of(appointment));
+
+        assertThrows(
+                AppointmentStatusUpdateNotAllowedException.class,
+                () -> appointmentService.updateAppointmentStatus(appointmentId, request));
+
+        assertEquals(currentStatus, appointment.getStatus());
+
+        verify(appointmentRepository).findById(appointmentId);
+        verifyNoMoreInteractions(appointmentRepository);
+        verifyNoInteractions(appointmentMapper);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenUpdatingStatusBeforeAppointmentStartTime() {
+        Long appointmentId = 1L;
+
+        Appointment appointment = new Appointment();
+        appointment.setId(appointmentId);
+        appointment.setAppointmentDate(LocalDate.now().plusDays(1));
+        appointment.setStartTime(LocalTime.of(8, 0));
+        appointment.setStatus(AppointmentStatus.BOOKED);
+
+        AppointmentStatusUpdateRequest request = new AppointmentStatusUpdateRequest(
+                AppointmentStatus.COMPLETED);
+
+        when(appointmentRepository.findById(appointmentId))
+                .thenReturn(Optional.of(appointment));
+
+        assertThrows(
+                AppointmentStatusUpdateBeforeStartTimeException.class,
+                () -> appointmentService.updateAppointmentStatus(appointmentId, request));
 
         assertEquals(AppointmentStatus.BOOKED, appointment.getStatus());
 

@@ -1,6 +1,7 @@
 package com.clinic.booking.modules.appointment.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -15,6 +16,8 @@ import java.time.LocalTime;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -22,6 +25,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.clinic.booking.modules.appointment.dto.request.AppointmentCreateRequest;
+import com.clinic.booking.modules.appointment.dto.request.AppointmentStatusUpdateRequest;
 import com.clinic.booking.modules.appointment.dto.response.AppointmentResponse;
 import com.clinic.booking.modules.appointment.entity.AppointmentStatus;
 import com.clinic.booking.modules.appointment.exception.AppointmentCancellationDeadlinePassedException;
@@ -29,6 +33,9 @@ import com.clinic.booking.modules.appointment.exception.AppointmentCancellationN
 import com.clinic.booking.modules.appointment.exception.AppointmentInPastException;
 import com.clinic.booking.modules.appointment.exception.AppointmentNotFoundException;
 import com.clinic.booking.modules.appointment.exception.AppointmentSlotUnavailableException;
+import com.clinic.booking.modules.appointment.exception.AppointmentStatusTargetNotAllowedException;
+import com.clinic.booking.modules.appointment.exception.AppointmentStatusUpdateBeforeStartTimeException;
+import com.clinic.booking.modules.appointment.exception.AppointmentStatusUpdateNotAllowedException;
 import com.clinic.booking.modules.appointment.service.AppointmentService;
 import com.clinic.booking.modules.doctor.exception.DoctorNotFoundException;
 
@@ -274,5 +281,171 @@ class AppointmentControllerTest {
                         .value("Appointments cannot be cancelled at or after their start time."));
 
         verify(appointmentService).cancelAppointment(appointmentId);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = AppointmentStatus.class, names = { "COMPLETED", "NO_SHOW" })
+    void shouldUpdateAppointmentStatus(AppointmentStatus updatedStatus) throws Exception {
+        Long appointmentId = 1L;
+        LocalDate appointmentDate = LocalDate.now().minusDays(1);
+
+        AppointmentResponse response = new AppointmentResponse(
+                appointmentId,
+                3L,
+                10L,
+                appointmentDate,
+                LocalTime.of(8, 0),
+                LocalTime.of(8, 30),
+                updatedStatus);
+
+        when(appointmentService.updateAppointmentStatus(
+                eq(appointmentId),
+                any(AppointmentStatusUpdateRequest.class)))
+                .thenReturn(response);
+
+        mockMvc.perform(patch("/api/appointments/{appointmentId}/status", appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "status": "%s"
+                        }
+                        """.formatted(updatedStatus)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(appointmentId))
+                .andExpect(jsonPath("$.status").value(updatedStatus.name()));
+
+        verify(appointmentService).updateAppointmentStatus(
+                eq(appointmentId),
+                any(AppointmentStatusUpdateRequest.class));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenStatusIsMissingDuringStatusUpdate() throws Exception {
+        Long appointmentId = 1L;
+
+        mockMvc.perform(patch("/api/appointments/{appointmentId}/status", appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.validationErrors.status")
+                        .value("Appointment status is required"));
+
+        verifyNoInteractions(appointmentService);
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenStatusIsUnknownDuringStatusUpdate() throws Exception {
+        Long appointmentId = 1L;
+
+        mockMvc.perform(patch("/api/appointments/{appointmentId}/status", appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "status": "INVALID"
+                        }
+                        """))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(appointmentService);
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenUpdatingStatusForNonexistentAppointment() throws Exception {
+        Long appointmentId = 999L;
+
+        when(appointmentService.updateAppointmentStatus(
+                eq(appointmentId),
+                any(AppointmentStatusUpdateRequest.class)))
+                .thenThrow(new AppointmentNotFoundException(appointmentId));
+
+        mockMvc.perform(patch("/api/appointments/{appointmentId}/status", appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "status": "COMPLETED"
+                        }
+                        """))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message")
+                        .value("Appointment not found with id: 999"));
+
+        verify(appointmentService).updateAppointmentStatus(
+                eq(appointmentId),
+                any(AppointmentStatusUpdateRequest.class));
+    }
+
+    @Test
+    void shouldReturnConflictWhenRequestedTargetStatusIsNotAllowed() throws Exception {
+        Long appointmentId = 1L;
+
+        when(appointmentService.updateAppointmentStatus(
+                eq(appointmentId),
+                any(AppointmentStatusUpdateRequest.class)))
+                .thenThrow(new AppointmentStatusTargetNotAllowedException());
+
+        mockMvc.perform(patch("/api/appointments/{appointmentId}/status", appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "status": "BOOKED"
+                        }
+                        """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("Appointment status can only be updated to COMPLETED or NO_SHOW."));
+
+        verify(appointmentService).updateAppointmentStatus(
+                eq(appointmentId),
+                any(AppointmentStatusUpdateRequest.class));
+    }
+
+    @Test
+    void shouldReturnConflictWhenCurrentAppointmentStatusCannotBeUpdated() throws Exception {
+        Long appointmentId = 1L;
+
+        when(appointmentService.updateAppointmentStatus(
+                eq(appointmentId),
+                any(AppointmentStatusUpdateRequest.class)))
+                .thenThrow(new AppointmentStatusUpdateNotAllowedException());
+
+        mockMvc.perform(patch("/api/appointments/{appointmentId}/status", appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "status": "COMPLETED"
+                        }
+                        """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("Only booked appointments can have their status updated."));
+
+        verify(appointmentService).updateAppointmentStatus(
+                eq(appointmentId),
+                any(AppointmentStatusUpdateRequest.class));
+    }
+
+    @Test
+    void shouldReturnConflictWhenUpdatingStatusBeforeAppointmentStartTime() throws Exception {
+        Long appointmentId = 1L;
+
+        when(appointmentService.updateAppointmentStatus(
+                eq(appointmentId),
+                any(AppointmentStatusUpdateRequest.class)))
+                .thenThrow(new AppointmentStatusUpdateBeforeStartTimeException());
+
+        mockMvc.perform(patch("/api/appointments/{appointmentId}/status", appointmentId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "status": "NO_SHOW"
+                        }
+                        """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("Appointment status can only be updated at or after its start time."));
+
+        verify(appointmentService).updateAppointmentStatus(
+                eq(appointmentId),
+                any(AppointmentStatusUpdateRequest.class));
     }
 }

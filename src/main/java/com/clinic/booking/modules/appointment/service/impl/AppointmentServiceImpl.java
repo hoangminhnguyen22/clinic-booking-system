@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.clinic.booking.modules.appointment.dto.request.AppointmentCreateRequest;
+import com.clinic.booking.modules.appointment.dto.request.AppointmentStatusUpdateRequest;
 import com.clinic.booking.modules.appointment.dto.response.AppointmentResponse;
 import com.clinic.booking.modules.appointment.entity.Appointment;
 import com.clinic.booking.modules.appointment.entity.AppointmentStatus;
@@ -15,6 +16,9 @@ import com.clinic.booking.modules.appointment.exception.AppointmentCancellationN
 import com.clinic.booking.modules.appointment.exception.AppointmentInPastException;
 import com.clinic.booking.modules.appointment.exception.AppointmentNotFoundException;
 import com.clinic.booking.modules.appointment.exception.AppointmentSlotUnavailableException;
+import com.clinic.booking.modules.appointment.exception.AppointmentStatusTargetNotAllowedException;
+import com.clinic.booking.modules.appointment.exception.AppointmentStatusUpdateBeforeStartTimeException;
+import com.clinic.booking.modules.appointment.exception.AppointmentStatusUpdateNotAllowedException;
 import com.clinic.booking.modules.appointment.mapper.AppointmentMapper;
 import com.clinic.booking.modules.appointment.repository.AppointmentRepository;
 import com.clinic.booking.modules.appointment.service.AppointmentService;
@@ -126,6 +130,34 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
 
         appointment.setStatus(AppointmentStatus.CANCELLED);
+
+        return appointmentMapper.toResponse(appointment);
+    }
+
+    @Override
+    @Transactional
+    public AppointmentResponse updateAppointmentStatus(Long appointmentId, AppointmentStatusUpdateRequest request) {
+        @SuppressWarnings("null")
+        Appointment appointment = appointmentRepository.findById(appointmentId)
+                .orElseThrow(() -> new AppointmentNotFoundException(appointmentId));
+
+        if (request.status() != AppointmentStatus.COMPLETED && request.status() != AppointmentStatus.NO_SHOW) {
+            throw new AppointmentStatusTargetNotAllowedException();
+        }
+
+        if (appointment.getStatus() != AppointmentStatus.BOOKED) {
+            throw new AppointmentStatusUpdateNotAllowedException();
+        }
+
+        LocalDateTime appointmentDateTime = LocalDateTime.of(
+                appointment.getAppointmentDate(),
+                appointment.getStartTime());
+
+        if (appointmentDateTime.isAfter(LocalDateTime.now())) {
+            throw new AppointmentStatusUpdateBeforeStartTimeException();
+        }
+
+        appointment.setStatus(request.status());
 
         return appointmentMapper.toResponse(appointment);
     }
