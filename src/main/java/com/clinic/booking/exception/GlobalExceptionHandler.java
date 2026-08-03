@@ -19,6 +19,11 @@ import com.clinic.booking.modules.doctor_schedule.exception.InvalidScheduleTimeE
 import com.clinic.booking.modules.doctor_schedule.exception.OverlappingDoctorScheduleException;
 import com.clinic.booking.modules.doctor_schedule.exception.DoctorScheduleNotFoundException;
 import com.clinic.booking.modules.availability.exception.PastDateAvailabilityException;
+import com.clinic.booking.modules.appointment.exception.AppointmentSlotUnavailableException;
+import com.clinic.booking.modules.appointment.exception.AppointmentCancellationDeadlinePassedException;
+import com.clinic.booking.modules.appointment.exception.AppointmentCancellationNotAllowedException;
+import com.clinic.booking.modules.appointment.exception.AppointmentInPastException;
+import com.clinic.booking.modules.appointment.exception.AppointmentNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -180,6 +185,91 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+
+    @ExceptionHandler(AppointmentSlotUnavailableException.class)
+    public ResponseEntity<ApiErrorResponse> handleAppointmentSlotUnavailable(
+            AppointmentSlotUnavailableException exception,
+            WebRequest request) {
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                exception.getMessage(),
+                request.getDescription(false).replace("uri=", ""));
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(response);
+    }
+
+    @ExceptionHandler(AppointmentInPastException.class)
+    public ResponseEntity<ApiErrorResponse> handleAppointmentInPast(
+            AppointmentInPastException exception,
+            WebRequest request) {
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                exception.getMessage(),
+                request.getDescription(false).replace("uri=", ""));
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(response);
+    }
+
+    @ExceptionHandler(AppointmentNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleAppointmentNotFound(
+            AppointmentNotFoundException exception,
+            WebRequest request) {
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.NOT_FOUND.value(),
+                HttpStatus.NOT_FOUND.getReasonPhrase(),
+                exception.getMessage(),
+                request.getDescription(false).replace("uri=", ""));
+
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(response);
+    }
+
+    @ExceptionHandler(AppointmentCancellationNotAllowedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAppointmentCancellationNotAllowed(
+            AppointmentCancellationNotAllowedException exception,
+            WebRequest request) {
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                exception.getMessage(),
+                request.getDescription(false).replace("uri=", ""));
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(response);
+    }
+
+    @ExceptionHandler(AppointmentCancellationDeadlinePassedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAppointmentCancellationDeadlinePassed(
+            AppointmentCancellationDeadlinePassedException exception,
+            WebRequest request) {
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                exception.getMessage(),
+                request.getDescription(false).replace("uri=", ""));
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
                 .body(response);
     }
 }
