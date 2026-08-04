@@ -3,6 +3,7 @@ package com.clinic.booking.modules.appointment.service.impl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -36,16 +37,19 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final AppointmentRepository appointmentRepository;
     private final DoctorRepository doctorRepository;
     private final AvailabilityService availabilityService;
+    private final Clock clock;
 
     public AppointmentServiceImpl(
             AppointmentMapper appointmentMapper,
             AppointmentRepository appointmentRepository,
             DoctorRepository doctorRepository,
-            AvailabilityService availabilityService) {
+            AvailabilityService availabilityService,
+            Clock clock) {
         this.appointmentMapper = appointmentMapper;
         this.appointmentRepository = appointmentRepository;
         this.doctorRepository = doctorRepository;
         this.availabilityService = availabilityService;
+        this.clock = clock;
     }
 
     @Override
@@ -55,7 +59,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 request.appointmentDate(),
                 request.startTime());
 
-        if (appointmentDateTime.isBefore(LocalDateTime.now())) {
+        if (appointmentDateTime.isBefore(LocalDateTime.now(clock))) {
             throw new AppointmentInPastException();
         }
 
@@ -125,7 +129,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 appointment.getAppointmentDate(),
                 appointment.getStartTime());
 
-        if (!appointmentDateTime.isAfter(LocalDateTime.now())) {
+        if (!appointmentDateTime.isAfter(LocalDateTime.now(clock))) {
             throw new AppointmentCancellationDeadlinePassedException();
         }
 
@@ -153,7 +157,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 appointment.getAppointmentDate(),
                 appointment.getStartTime());
 
-        if (appointmentDateTime.isAfter(LocalDateTime.now())) {
+        if (appointmentDateTime.isAfter(LocalDateTime.now(clock))) {
             throw new AppointmentStatusUpdateBeforeStartTimeException();
         }
 

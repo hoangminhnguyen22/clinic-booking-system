@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.time.Clock;
 
 import org.springframework.stereotype.Service;
 
@@ -27,15 +28,18 @@ public class AvailabilityServiceImpl implements AvailabilityService {
     private final DoctorRepository doctorRepository;
     private final DoctorScheduleRepository doctorScheduleRepository;
     private final AppointmentRepository appointmentRepository;
+    private final Clock clock;
 
     public AvailabilityServiceImpl(
             DoctorRepository doctorRepository,
             DoctorScheduleRepository doctorScheduleRepository,
-            AppointmentRepository appointmentRepository) {
+            AppointmentRepository appointmentRepository,
+            Clock clock) {
 
         this.doctorRepository = doctorRepository;
         this.doctorScheduleRepository = doctorScheduleRepository;
         this.appointmentRepository = appointmentRepository;
+        this.clock = clock;
     }
 
     @Override
@@ -43,7 +47,7 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             Long doctorId,
             LocalDate date) {
 
-        if (date.isBefore(LocalDate.now())) {
+        if (date.isBefore(LocalDate.now(clock))) {
             throw new PastDateAvailabilityException();
         }
 

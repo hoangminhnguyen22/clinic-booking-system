@@ -7,14 +7,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -37,16 +40,28 @@ class AvailabilityServiceImplTest {
     @Mock
     private DoctorScheduleRepository doctorScheduleRepository;
 
-    @InjectMocks
     private AvailabilityServiceImpl availabilityService;
 
     @Mock
     private AppointmentRepository appointmentRepository;
 
+    private final Clock clock = Clock.fixed(
+            Instant.parse("2026-08-03T02:00:00Z"),
+            ZoneId.of("Asia/Ho_Chi_Minh"));
+
+    @BeforeEach
+    void setUp() {
+        availabilityService = new AvailabilityServiceImpl(
+                doctorRepository,
+                doctorScheduleRepository,
+                appointmentRepository,
+                clock);
+    }
+
     @Test
     void shouldGenerateSlotsForDoctorSchedule() {
         Long doctorId = 3L;
-        LocalDate date = LocalDate.now().plusDays(1);
+        LocalDate date = LocalDate.of(2026, 8, 4);
 
         Doctor doctor = new Doctor();
         doctor.setId(doctorId);
@@ -91,7 +106,7 @@ class AvailabilityServiceImplTest {
     @Test
     void shouldReturnNoSlotsWhenDoctorIsInactive() {
         Long doctorId = 3L;
-        LocalDate date = LocalDate.now().plusDays(1);
+        LocalDate date = LocalDate.of(2026, 8, 4);
 
         Doctor doctor = new Doctor();
         doctor.setId(doctorId);
@@ -114,7 +129,7 @@ class AvailabilityServiceImplTest {
     @Test
     void shouldThrowExceptionWhenAvailabilityDateIsInThePast() {
         Long doctorId = 3L;
-        LocalDate pastDate = LocalDate.now().minusDays(1);
+        LocalDate pastDate = LocalDate.of(2026, 8, 2);
 
         assertThrows(
                 PastDateAvailabilityException.class,
@@ -131,7 +146,7 @@ class AvailabilityServiceImplTest {
     @Test
     void shouldExcludeBookedSlotFromAvailableSlots() {
         Long doctorId = 3L;
-        LocalDate date = LocalDate.now().plusDays(1);
+        LocalDate date = LocalDate.of(2026, 8, 4);
 
         Doctor doctor = new Doctor();
         doctor.setId(doctorId);
@@ -174,5 +189,27 @@ class AvailabilityServiceImplTest {
         assertFalse(slots.stream()
                 .anyMatch(slot -> slot.startTime()
                         .equals(LocalTime.of(8, 30))));
+    }
+
+    @Test
+    void shouldAllowAvailabilityForCurrentDate() {
+        Long doctorId = 3L;
+        LocalDate date = LocalDate.of(2026, 8, 3);
+
+        Doctor doctor = new Doctor();
+        doctor.setId(doctorId);
+        doctor.setActive(false);
+
+        when(doctorRepository.findById(doctorId))
+                .thenReturn(Optional.of(doctor));
+
+        List<AvailableSlotResponse> slots = availabilityService
+                .getAvailableSlotsForDoctor(doctorId, date);
+
+        assertTrue(slots.isEmpty());
+
+        verifyNoInteractions(
+                doctorScheduleRepository,
+                appointmentRepository);
     }
 }

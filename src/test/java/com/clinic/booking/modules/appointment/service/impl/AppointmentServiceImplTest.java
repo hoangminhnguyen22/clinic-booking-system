@@ -9,16 +9,19 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -59,14 +62,27 @@ class AppointmentServiceImplTest {
     @Mock
     private AppointmentMapper appointmentMapper;
 
-    @InjectMocks
     private AppointmentServiceImpl appointmentService;
+
+    private final Clock clock = Clock.fixed(
+            Instant.parse("2026-08-03T02:00:00Z"),
+            ZoneId.of("Asia/Ho_Chi_Minh"));
+
+    @BeforeEach
+    void setUp() {
+        appointmentService = new AppointmentServiceImpl(
+                appointmentMapper,
+                appointmentRepository,
+                doctorRepository,
+                availabilityService,
+                clock);
+    }
 
     @Test
     void shouldCreateAppointmentWhenRequestedSlotIsAvailable() {
         Long doctorId = 3L;
         Long patientId = 10L;
-        LocalDate appointmentDate = LocalDate.now().plusDays(1);
+        LocalDate appointmentDate = LocalDate.of(2026, 8, 4);
         LocalTime startTime = LocalTime.of(8, 0);
         LocalTime endTime = LocalTime.of(8, 30);
 
@@ -143,7 +159,7 @@ class AppointmentServiceImplTest {
         AppointmentCreateRequest request = new AppointmentCreateRequest(
                 3L,
                 10L,
-                LocalDate.now().minusDays(1),
+                LocalDate.of(2026, 8, 2),
                 LocalTime.of(8, 0));
 
         assertThrows(
@@ -160,7 +176,7 @@ class AppointmentServiceImplTest {
     @Test
     void shouldThrowExceptionWhenRequestedSlotIsUnavailable() {
         Long doctorId = 3L;
-        LocalDate appointmentDate = LocalDate.now().plusDays(1);
+        LocalDate appointmentDate = LocalDate.of(2026, 8, 4);
 
         AppointmentCreateRequest request = new AppointmentCreateRequest(
                 doctorId,
@@ -196,7 +212,7 @@ class AppointmentServiceImplTest {
     @Test
     void shouldThrowExceptionWhenRequestedSlotIsAlreadyBooked() {
         Long doctorId = 3L;
-        LocalDate appointmentDate = LocalDate.now().plusDays(1);
+        LocalDate appointmentDate = LocalDate.of(2026, 8, 4);
         LocalTime startTime = LocalTime.of(8, 0);
         LocalTime endTime = LocalTime.of(8, 30);
 
@@ -245,7 +261,7 @@ class AppointmentServiceImplTest {
         AppointmentCreateRequest request = new AppointmentCreateRequest(
                 doctorId,
                 10L,
-                LocalDate.now().plusDays(1),
+                LocalDate.of(2026, 8, 4),
                 LocalTime.of(8, 0));
 
         when(doctorRepository.findById(doctorId))
@@ -264,7 +280,7 @@ class AppointmentServiceImplTest {
     @Test
     void shouldThrowSlotUnavailableExceptionWhenDatabaseRejectsDuplicateSlot() {
         Long doctorId = 3L;
-        LocalDate appointmentDate = LocalDate.now().plusDays(1);
+        LocalDate appointmentDate = LocalDate.of(2026, 8, 4);
         LocalTime startTime = LocalTime.of(8, 0);
         LocalTime endTime = LocalTime.of(8, 30);
 
@@ -370,7 +386,7 @@ class AppointmentServiceImplTest {
         Long appointmentId = 1L;
         Long doctorId = 3L;
         Long patientId = 10L;
-        LocalDate appointmentDate = LocalDate.now().plusDays(1);
+        LocalDate appointmentDate = LocalDate.of(2026, 8, 4);
         LocalTime startTime = LocalTime.of(8, 0);
         LocalTime endTime = LocalTime.of(8, 30);
 
@@ -451,7 +467,7 @@ class AppointmentServiceImplTest {
 
         Appointment appointment = new Appointment();
         appointment.setId(appointmentId);
-        appointment.setAppointmentDate(LocalDate.now().minusDays(1));
+        appointment.setAppointmentDate(LocalDate.of(2026, 8, 2));
         appointment.setStartTime(LocalTime.of(8, 0));
         appointment.setStatus(AppointmentStatus.BOOKED);
 
@@ -472,7 +488,7 @@ class AppointmentServiceImplTest {
     @Test
     void shouldUpdateBookedAppointmentToCompleted() {
         Long appointmentId = 1L;
-        LocalDate appointmentDate = LocalDate.now().minusDays(1);
+        LocalDate appointmentDate = LocalDate.of(2026, 8, 2);
         LocalTime startTime = LocalTime.of(8, 0);
 
         Appointment appointment = new Appointment();
@@ -513,7 +529,7 @@ class AppointmentServiceImplTest {
     @Test
     void shouldUpdateBookedAppointmentToNoShow() {
         Long appointmentId = 1L;
-        LocalDate appointmentDate = LocalDate.now().minusDays(1);
+        LocalDate appointmentDate = LocalDate.of(2026, 8, 2);
         LocalTime startTime = LocalTime.of(8, 0);
 
         Appointment appointment = new Appointment();
@@ -632,7 +648,7 @@ class AppointmentServiceImplTest {
 
         Appointment appointment = new Appointment();
         appointment.setId(appointmentId);
-        appointment.setAppointmentDate(LocalDate.now().plusDays(1));
+        appointment.setAppointmentDate(LocalDate.of(2026, 8, 4));
         appointment.setStartTime(LocalTime.of(8, 0));
         appointment.setStatus(AppointmentStatus.BOOKED);
 
@@ -651,5 +667,128 @@ class AppointmentServiceImplTest {
         verify(appointmentRepository).findById(appointmentId);
         verifyNoMoreInteractions(appointmentRepository);
         verifyNoInteractions(appointmentMapper);
+    }
+
+    @Test
+    void shouldUpdateAppointmentStatusAtAppointmentStartTime() {
+        Long appointmentId = 1L;
+        LocalDate appointmentDate = LocalDate.of(2026, 8, 3);
+        LocalTime startTime = LocalTime.of(9, 0);
+
+        Appointment appointment = new Appointment();
+        appointment.setId(appointmentId);
+        appointment.setAppointmentDate(appointmentDate);
+        appointment.setStartTime(startTime);
+        appointment.setStatus(AppointmentStatus.BOOKED);
+
+        AppointmentStatusUpdateRequest request = new AppointmentStatusUpdateRequest(
+                AppointmentStatus.COMPLETED);
+
+        AppointmentResponse expectedResponse = new AppointmentResponse(
+                appointmentId,
+                3L,
+                10L,
+                appointmentDate,
+                startTime,
+                LocalTime.of(9, 30),
+                AppointmentStatus.COMPLETED);
+
+        when(appointmentRepository.findById(appointmentId))
+                .thenReturn(Optional.of(appointment));
+
+        when(appointmentMapper.toResponse(appointment))
+                .thenReturn(expectedResponse);
+
+        AppointmentResponse actualResponse = appointmentService
+                .updateAppointmentStatus(appointmentId, request);
+
+        assertEquals(expectedResponse, actualResponse);
+        assertEquals(AppointmentStatus.COMPLETED, appointment.getStatus());
+    }
+
+    @Test
+    void shouldThrowExceptionWhenCancellingAppointmentAtStartTime() {
+        Long appointmentId = 1L;
+
+        Appointment appointment = new Appointment();
+        appointment.setId(appointmentId);
+        appointment.setAppointmentDate(LocalDate.of(2026, 8, 3));
+        appointment.setStartTime(LocalTime.of(9, 0));
+        appointment.setStatus(AppointmentStatus.BOOKED);
+
+        when(appointmentRepository.findById(appointmentId))
+                .thenReturn(Optional.of(appointment));
+
+        assertThrows(
+                AppointmentCancellationDeadlinePassedException.class,
+                () -> appointmentService.cancelAppointment(appointmentId));
+
+        assertEquals(AppointmentStatus.BOOKED, appointment.getStatus());
+
+        verify(appointmentRepository).findById(appointmentId);
+        verifyNoMoreInteractions(appointmentRepository);
+        verifyNoInteractions(appointmentMapper);
+    }
+
+    @Test
+    void shouldCreateAppointmentAtCurrentTime() {
+        Long doctorId = 3L;
+        Long patientId = 10L;
+        LocalDate appointmentDate = LocalDate.of(2026, 8, 3);
+        LocalTime startTime = LocalTime.of(9, 0);
+        LocalTime endTime = LocalTime.of(9, 30);
+
+        AppointmentCreateRequest request = new AppointmentCreateRequest(
+                doctorId,
+                patientId,
+                appointmentDate,
+                startTime);
+
+        Doctor doctor = new Doctor();
+        doctor.setId(doctorId);
+
+        AvailableSlotResponse availableSlot = new AvailableSlotResponse(
+                appointmentDate,
+                startTime,
+                endTime);
+
+        Appointment appointment = new Appointment();
+        appointment.setId(1L);
+        appointment.setDoctor(doctor);
+        appointment.setPatientId(patientId);
+        appointment.setAppointmentDate(appointmentDate);
+        appointment.setStartTime(startTime);
+        appointment.setEndTime(endTime);
+
+        AppointmentResponse expectedResponse = new AppointmentResponse(
+                1L,
+                doctorId,
+                patientId,
+                appointmentDate,
+                startTime,
+                endTime,
+                AppointmentStatus.BOOKED);
+
+        when(doctorRepository.findById(doctorId))
+                .thenReturn(Optional.of(doctor));
+        when(availabilityService.getAvailableSlotsForDoctor(doctorId, appointmentDate))
+                .thenReturn(List.of(availableSlot));
+        when(appointmentRepository.existsByDoctorIdAndAppointmentDateAndStartTimeAndStatus(
+                doctorId,
+                appointmentDate,
+                startTime,
+                AppointmentStatus.BOOKED))
+                .thenReturn(false);
+        when(appointmentMapper.toEntity(request, doctor, endTime))
+                .thenReturn(appointment);
+        when(appointmentRepository.saveAndFlush(appointment))
+                .thenReturn(appointment);
+        when(appointmentMapper.toResponse(appointment))
+                .thenReturn(expectedResponse);
+
+        AppointmentResponse actualResponse = appointmentService.createAppointment(request);
+
+        assertEquals(expectedResponse, actualResponse);
+        verify(appointmentRepository).saveAndFlush(appointment);
     }
 }
