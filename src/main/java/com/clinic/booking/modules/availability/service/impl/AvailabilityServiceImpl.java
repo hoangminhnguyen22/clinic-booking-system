@@ -1,6 +1,7 @@
 package com.clinic.booking.modules.availability.service.impl;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -47,7 +48,11 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             Long doctorId,
             LocalDate date) {
 
-        if (date.isBefore(LocalDate.now(clock))) {
+        LocalDateTime now = LocalDateTime.now(clock);
+        LocalDate today = now.toLocalDate();
+        LocalTime currentTime = now.toLocalTime();
+
+        if (date.isBefore(today)) {
             throw new PastDateAvailabilityException();
         }
 
@@ -82,7 +87,9 @@ public class AvailabilityServiceImpl implements AvailabilityService {
             LocalTime candidateEnd = currentStart.plusMinutes(durationMinutes);
 
             while (!candidateEnd.isAfter(schedule.getEndTime())) {
-                if (!bookedStartTimes.contains(currentStart)) {
+                boolean hasNotStartedYet = date.isAfter(today) || !currentStart.isBefore(currentTime);
+
+                if (hasNotStartedYet && !bookedStartTimes.contains(currentStart)) {
                     availableSlots.add(new AvailableSlotResponse(
                             date,
                             currentStart,

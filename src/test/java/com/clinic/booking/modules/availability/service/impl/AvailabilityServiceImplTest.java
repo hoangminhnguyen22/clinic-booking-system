@@ -212,4 +212,50 @@ class AvailabilityServiceImplTest {
                 doctorScheduleRepository,
                 appointmentRepository);
     }
+
+    @Test
+    void shouldExcludePastSlotsForCurrentDate() {
+        Long doctorId = 3L;
+        LocalDate date = LocalDate.of(2026, 8, 3);
+
+        Doctor doctor = new Doctor();
+        doctor.setId(doctorId);
+        doctor.setActive(true);
+        doctor.setAppointmentDurationMinutes(30);
+
+        DoctorSchedule schedule = new DoctorSchedule();
+        schedule.setDoctor(doctor);
+        schedule.setDayOfWeek(date.getDayOfWeek());
+        schedule.setStartTime(LocalTime.of(8, 0));
+        schedule.setEndTime(LocalTime.of(10, 0));
+
+        when(doctorRepository.findById(doctorId))
+                .thenReturn(Optional.of(doctor));
+
+        when(doctorScheduleRepository.findByDoctorIdAndDayOfWeek(
+                doctorId,
+                date.getDayOfWeek()))
+                .thenReturn(List.of(schedule));
+
+        when(appointmentRepository.findByDoctorIdAndAppointmentDateAndStatus(
+                doctorId,
+                date,
+                AppointmentStatus.BOOKED))
+                .thenReturn(List.of());
+
+        List<AvailableSlotResponse> slots = availabilityService
+                .getAvailableSlotsForDoctor(doctorId, date);
+
+        assertEquals(
+                List.of(
+                        new AvailableSlotResponse(
+                                date,
+                                LocalTime.of(9, 0),
+                                LocalTime.of(9, 30)),
+                        new AvailableSlotResponse(
+                                date,
+                                LocalTime.of(9, 30),
+                                LocalTime.of(10, 0))),
+                slots);
+    }
 }
