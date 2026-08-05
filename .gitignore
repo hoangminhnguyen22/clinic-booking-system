@@ -36,3 +36,4 @@ _bmad/
 _bmad-output/
 .agents/
 opencode.json
+node_modules/
