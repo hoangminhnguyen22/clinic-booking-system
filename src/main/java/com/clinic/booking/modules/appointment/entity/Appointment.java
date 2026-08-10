@@ -1,6 +1,7 @@
 package com.clinic.booking.modules.appointment.entity;
 
 import com.clinic.booking.modules.doctor.entity.Doctor;
+import com.clinic.booking.modules.patient.entity.PatientProfile;
 
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -8,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;
@@ -27,8 +29,9 @@ public class Appointment {
     @JoinColumn(name = "doctor_id", nullable = false)
     private Doctor doctor;
 
-    @Column(name = "patient_id", nullable = false)
-    private Long patientId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "patient_id", nullable = false)
+    private PatientProfile patientProfile;
 
     @Column(name = "appointment_date", nullable = false)
     private LocalDate appointmentDate;
@@ -62,12 +65,12 @@ public class Appointment {
         this.doctor = doctor;
     }
 
-    public Long getPatientId() {
-        return patientId;
+    public PatientProfile getPatient() {
+        return patientProfile;
     }
 
-    public void setPatientId(Long patientId) {
-        this.patientId = patientId;
+    public void setPatient(PatientProfile patientProfile) {
+        this.patientProfile = patientProfile;
     }
 
     public LocalDate getAppointmentDate() {

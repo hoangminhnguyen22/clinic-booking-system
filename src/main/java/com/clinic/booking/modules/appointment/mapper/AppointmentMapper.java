@@ -8,13 +8,15 @@ import com.clinic.booking.modules.appointment.dto.request.AppointmentCreateReque
 import com.clinic.booking.modules.appointment.dto.response.AppointmentResponse;
 import com.clinic.booking.modules.appointment.entity.Appointment;
 import com.clinic.booking.modules.doctor.entity.Doctor;
+import com.clinic.booking.modules.patient.entity.PatientProfile;
 
 @Component
 public class AppointmentMapper {
-    public Appointment toEntity(AppointmentCreateRequest request, Doctor doctor, LocalTime endTime) {
+    public Appointment toEntity(AppointmentCreateRequest request, Doctor doctor, PatientProfile patient,
+            LocalTime endTime) {
         Appointment appointment = new Appointment();
         appointment.setDoctor(doctor);
-        appointment.setPatientId(request.patientId());
+        appointment.setPatient(patient);
         appointment.setAppointmentDate(request.appointmentDate());
         appointment.setStartTime(request.startTime());
         appointment.setEndTime(endTime);
@@ -25,7 +27,7 @@ public class AppointmentMapper {
         return new AppointmentResponse(
                 appointment.getId(),
                 appointment.getDoctor().getId(),
-                appointment.getPatientId(),
+                appointment.getPatient().getId(),
                 appointment.getAppointmentDate(),
                 appointment.getStartTime(),
                 appointment.getEndTime(),
