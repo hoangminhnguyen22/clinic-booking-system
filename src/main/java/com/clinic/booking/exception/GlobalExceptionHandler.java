@@ -23,6 +23,7 @@ import com.clinic.booking.modules.appointment.exception.AppointmentSlotUnavailab
 import com.clinic.booking.modules.appointment.exception.AppointmentStatusTargetNotAllowedException;
 import com.clinic.booking.modules.appointment.exception.AppointmentStatusUpdateBeforeStartTimeException;
 import com.clinic.booking.modules.appointment.exception.AppointmentStatusUpdateNotAllowedException;
+import com.clinic.booking.modules.authentication.exception.RegistrationEmailAlreadyExistsException;
 import com.clinic.booking.modules.appointment.exception.AppointmentCancellationDeadlinePassedException;
 import com.clinic.booking.modules.appointment.exception.AppointmentCancellationNotAllowedException;
 import com.clinic.booking.modules.appointment.exception.AppointmentInPastException;
@@ -313,6 +314,23 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AppointmentStatusTargetNotAllowedException.class)
     public ResponseEntity<ApiErrorResponse> handleAppointmentStatusTargetNotAllowed(
             AppointmentStatusTargetNotAllowedException exception,
+            WebRequest request) {
+
+        ApiErrorResponse response = new ApiErrorResponse(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                exception.getMessage(),
+                request.getDescription(false).replace("uri=", ""));
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(response);
+    }
+
+    @ExceptionHandler(RegistrationEmailAlreadyExistsException.class)
+    public ResponseEntity<ApiErrorResponse> handleRegistrationEmailAlreadyExists(
+            RegistrationEmailAlreadyExistsException exception,
             WebRequest request) {
 
         ApiErrorResponse response = new ApiErrorResponse(
