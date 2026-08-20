@@ -23,6 +23,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 
 import com.clinic.booking.modules.appointment.dto.request.AppointmentCreateRequest;
 import com.clinic.booking.modules.appointment.dto.request.AppointmentStatusUpdateRequest;
@@ -40,6 +41,7 @@ import com.clinic.booking.modules.appointment.service.AppointmentService;
 import com.clinic.booking.modules.doctor.exception.DoctorNotFoundException;
 
 @WebMvcTest(AppointmentController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class AppointmentControllerTest {
 
     @Autowired

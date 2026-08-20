@@ -14,6 +14,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 
 import com.clinic.booking.modules.authentication.dto.request.RegistrationRequest;
 import com.clinic.booking.modules.authentication.dto.response.RegistrationResponse;
@@ -21,6 +22,7 @@ import com.clinic.booking.modules.authentication.exception.RegistrationEmailAlre
 import com.clinic.booking.modules.authentication.service.RegistrationService;
 
 @WebMvcTest(RegistrationController.class)
+@AutoConfigureMockMvc(addFilters = false)
 class RegistrationControllerTest {
 
     @Autowired
