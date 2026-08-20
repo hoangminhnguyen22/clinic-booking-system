@@ -1,6 +1,7 @@
 package com.clinic.booking.modules.authentication.security;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -201,6 +202,12 @@ class JsonLoginSecurityIntegrationTest {
                 @AuthenticationPrincipal AuthenticatedActor actor) {
             return new ActorResponse(actor.userId());
         }
+
+        @GetMapping("/test/admin")
+        ActorResponse adminOnly(
+                @AuthenticationPrincipal AuthenticatedActor actor) {
+            return new ActorResponse(actor.userId());
+        }
     }
 
     record ActorResponse(Long userId) {
@@ -249,6 +256,130 @@ class JsonLoginSecurityIntegrationTest {
                 .andExpect(cookie().maxAge("JSESSIONID", 0));
 
         assertTrue(session.isInvalid());
+
+        verify(authenticationService).authenticate(email, password);
+    }
+
+    @Test
+    void shouldReturnGenericUnauthorizedForProtectedRequestWithoutAuthentication()
+            throws Exception {
+        // Arrange: no authenticated session
+
+        // Act and Assert
+        mockMvc.perform(get("/test/authenticated-actor"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(
+                        MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.message").value(
+                        "Authentication is required."))
+                .andExpect(jsonPath("$.path").value(
+                        "/test/authenticated-actor"));
+
+        verifyNoInteractions(authenticationService);
+    }
+
+    @Test
+    void shouldReturnGenericForbiddenWhenAuthenticatedActorLacksRequiredRole()
+            throws Exception {
+        // Arrange
+        String email = "patient@example.com";
+        String password = "example-credential";
+
+        AuthenticatedActor actor = new AuthenticatedActor(
+                42L,
+                Set.of(Role.PATIENT));
+
+        when(authenticationService.authenticate(email, password))
+                .thenReturn(Optional.of(actor));
+
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "email": "patient@example.com",
+                          "password": "example-credential"
+                        }
+                        """))
+                .andExpect(status().isNoContent())
+                .andReturn();
+
+        MockHttpSession session = (MockHttpSession) loginResult.getRequest().getSession(false);
+
+        assertTrue(session != null);
+
+        // Act and Assert
+        mockMvc.perform(get("/test/admin")
+                .session(session))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(
+                        MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value(
+                        "Access is denied."))
+                .andExpect(jsonPath("$.path").value("/test/admin"));
+
+        verify(authenticationService).authenticate(email, password);
+    }
+
+    @Test
+    void shouldRejectLogoutWithoutCsrfAndPreserveAuthenticatedSession()
+            throws Exception {
+        // Arrange
+        String email = "patient@example.com";
+        String password = "example-credential";
+
+        AuthenticatedActor actor = new AuthenticatedActor(
+                42L,
+                Set.of(Role.PATIENT));
+
+        when(authenticationService.authenticate(email, password))
+                .thenReturn(Optional.of(actor));
+
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "email": "patient@example.com",
+                          "password": "example-credential"
+                        }
+                        """))
+                .andExpect(status().isNoContent())
+                .andReturn();
+
+        MockHttpSession session = (MockHttpSession) loginResult.getRequest().getSession(false);
+
+        assertTrue(session != null);
+
+        // Act and Assert
+        mockMvc.perform(post("/api/auth/logout")
+                .session(session))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(
+                        MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value(
+                        "Access is denied."))
+                .andExpect(jsonPath("$.path").value("/api/auth/logout"));
+
+        assertFalse(session.isInvalid());
+
+        Object storedContext = session.getAttribute(
+                HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
+
+        SecurityContext securityContext = assertInstanceOf(SecurityContext.class, storedContext);
+
+        assertInstanceOf(
+                AuthenticatedActorToken.class,
+                securityContext.getAuthentication());
 
         verify(authenticationService).authenticate(email, password);
     }
