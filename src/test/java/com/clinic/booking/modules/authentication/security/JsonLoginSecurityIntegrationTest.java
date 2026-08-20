@@ -14,6 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 
 import java.util.Optional;
 import java.util.Set;
@@ -203,5 +204,52 @@ class JsonLoginSecurityIntegrationTest {
     }
 
     record ActorResponse(Long userId) {
+    }
+
+    @Test
+    void shouldInvalidateSessionAndClearSessionCookieAfterLogout()
+            throws Exception {
+        // Arrange
+        String email = "patient@example.com";
+        String password = "example-credential";
+
+        AuthenticatedActor actor = new AuthenticatedActor(
+                42L,
+                Set.of(Role.PATIENT));
+
+        when(authenticationService.authenticate(email, password))
+                .thenReturn(Optional.of(actor));
+
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "email": "patient@example.com",
+                          "password": "example-credential"
+                        }
+                        """))
+                .andExpect(status().isNoContent())
+                .andReturn();
+
+        MockHttpSession session = (MockHttpSession) loginResult.getRequest().getSession(false);
+
+        assertTrue(session != null);
+        assertTrue(session.getAttribute(
+                HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY) instanceof SecurityContext);
+
+        // Act
+        mockMvc.perform(post("/api/auth/logout")
+                .session(session)
+                .with(csrf()))
+
+                // Assert
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""))
+                .andExpect(cookie().maxAge("JSESSIONID", 0));
+
+        assertTrue(session.isInvalid());
+
+        verify(authenticationService).authenticate(email, password);
     }
 }

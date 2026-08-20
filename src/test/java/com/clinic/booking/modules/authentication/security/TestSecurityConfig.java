@@ -68,6 +68,14 @@ public class TestSecurityConfig {
                         .anyRequest().permitAll())
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
+                .logout(logout -> logout
+                        .logoutUrl("/api/auth/logout")
+                        .logoutSuccessHandler(
+                                (request, response, authentication) -> response.setStatus(
+                                        HttpStatus.NO_CONTENT.value()))
+                        .invalidateHttpSession(true)
+                        .clearAuthentication(true)
+                        .deleteCookies("JSESSIONID"))
                 .addFilterAt(
                         jsonLoginAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class);
