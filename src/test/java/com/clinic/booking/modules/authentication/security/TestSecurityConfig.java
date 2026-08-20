@@ -41,7 +41,8 @@ public class TestSecurityConfig {
         filter.setSecurityContextRepository(securityContextRepository);
 
         filter.setAuthenticationSuccessHandler(
-                (request, response, authentication) -> response.setStatus(HttpStatus.NO_CONTENT.value()));
+                (request, response, authentication) -> response
+                        .setStatus(HttpStatus.NO_CONTENT.value()));
 
         filter.setAuthenticationFailureHandler(
                 (request, response, exception) -> response.setStatus(HttpStatus.UNAUTHORIZED.value()));

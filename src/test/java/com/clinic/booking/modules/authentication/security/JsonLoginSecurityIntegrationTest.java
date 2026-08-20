@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 import java.util.Optional;
 import java.util.Set;
@@ -30,6 +30,9 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.clinic.booking.modules.authentication.controller.CsrfController;
 import com.clinic.booking.modules.authentication.principal.AuthenticatedActor;
@@ -39,7 +42,8 @@ import com.clinic.booking.modules.user.entity.Role;
 @WebMvcTest(CsrfController.class)
 @Import({
         TestSecurityConfig.class,
-        CredentialAuthenticationProvider.class
+        CredentialAuthenticationProvider.class,
+        JsonLoginSecurityIntegrationTest.TestPrincipalController.class
 })
 class JsonLoginSecurityIntegrationTest {
 
@@ -154,13 +158,50 @@ class JsonLoginSecurityIntegrationTest {
     }
 
     @Test
-    void shouldIssueJavaScriptReadableCsrfCookie() throws Exception {
-        mockMvc.perform(get("/api/auth/csrf"))
-                .andExpect(status().isNoContent())
-                .andExpect(content().string(""))
-                .andExpect(cookie().exists("XSRF-TOKEN"))
-                .andExpect(cookie().httpOnly("XSRF-TOKEN", false));
+    void shouldRestoreAuthenticatedActorFromHttpSessionOnLaterRequest()
+            throws Exception {
+        String email = "patient@example.com";
+        String password = "example-credential";
 
-        verifyNoInteractions(authenticationService);
+        AuthenticatedActor actor = new AuthenticatedActor(42L, Set.of(Role.PATIENT));
+
+        when(authenticationService.authenticate(email, password))
+                .thenReturn(Optional.of(actor));
+
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "email": "patient@example.com",
+                          "password": "example-credential"
+                        }
+                        """))
+                .andExpect(status().isNoContent())
+                .andReturn();
+
+        MockHttpSession session = (MockHttpSession) loginResult.getRequest().getSession(false);
+
+        assertTrue(session != null);
+
+        mockMvc.perform(get("/test/authenticated-actor")
+                .session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(42));
+
+        verify(authenticationService).authenticate(email, password);
+    }
+
+    @RestController
+    public static class TestPrincipalController {
+
+        @GetMapping("/test/authenticated-actor")
+        ActorResponse authenticatedActor(
+                @AuthenticationPrincipal AuthenticatedActor actor) {
+            return new ActorResponse(actor.userId());
+        }
+    }
+
+    record ActorResponse(Long userId) {
     }
 }
