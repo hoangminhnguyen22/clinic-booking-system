@@ -14,10 +14,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -39,6 +44,8 @@ import com.clinic.booking.modules.appointment.exception.AppointmentStatusUpdateB
 import com.clinic.booking.modules.appointment.exception.AppointmentStatusUpdateNotAllowedException;
 import com.clinic.booking.modules.appointment.service.AppointmentService;
 import com.clinic.booking.modules.doctor.exception.DoctorNotFoundException;
+import com.clinic.booking.modules.authentication.principal.AuthenticatedActor;
+import com.clinic.booking.modules.user.entity.Role;
 
 @WebMvcTest(AppointmentController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -49,6 +56,19 @@ class AppointmentControllerTest {
 
     @MockitoBean
     private AppointmentService appointmentService;
+
+    private final AuthenticatedActor actor = new AuthenticatedActor(42L, Set.of(Role.PATIENT));
+
+    @BeforeEach
+    void setUpAuthentication() {
+        SecurityContextHolder.getContext().setAuthentication(
+                new TestingAuthenticationToken(actor, null));
+    }
+
+    @AfterEach
+    void clearAuthentication() {
+        SecurityContextHolder.clearContext();
+    }
 
     @Test
     void shouldCreateAppointment() throws Exception {
@@ -64,6 +84,7 @@ class AppointmentControllerTest {
                 AppointmentStatus.BOOKED);
 
         when(appointmentService.createAppointment(
+                eq(actor),
                 any(AppointmentCreateRequest.class)))
                 .thenReturn(response);
 
@@ -72,7 +93,6 @@ class AppointmentControllerTest {
                 .content("""
                         {
                           "doctorId": 3,
-                          "patientId": 10,
                           "appointmentDate": "%s",
                           "startTime": "08:00"
                         }
@@ -84,6 +104,7 @@ class AppointmentControllerTest {
                 .andExpect(jsonPath("$.status").value("BOOKED"));
 
         verify(appointmentService).createAppointment(
+                eq(actor),
                 any(AppointmentCreateRequest.class));
     }
 
@@ -95,7 +116,6 @@ class AppointmentControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {
-                          "patientId": 10,
                           "appointmentDate": "%s",
                           "startTime": "08:00"
                         }
@@ -113,6 +133,7 @@ class AppointmentControllerTest {
         LocalDate appointmentDate = LocalDate.now().plusDays(1);
 
         when(appointmentService.createAppointment(
+                eq(actor),
                 any(AppointmentCreateRequest.class)))
                 .thenThrow(new AppointmentSlotUnavailableException());
 
@@ -121,7 +142,6 @@ class AppointmentControllerTest {
                 .content("""
                         {
                           "doctorId": 3,
-                          "patientId": 10,
                           "appointmentDate": "%s",
                           "startTime": "08:00"
                         }
@@ -131,6 +151,7 @@ class AppointmentControllerTest {
                         .value("The requested appointment slot is unavailable."));
 
         verify(appointmentService).createAppointment(
+                eq(actor),
                 any(AppointmentCreateRequest.class));
     }
 
@@ -140,6 +161,7 @@ class AppointmentControllerTest {
         LocalDate appointmentDate = LocalDate.now().plusDays(1);
 
         when(appointmentService.createAppointment(
+                eq(actor),
                 any(AppointmentCreateRequest.class)))
                 .thenThrow(new DoctorNotFoundException(doctorId));
 
@@ -148,7 +170,6 @@ class AppointmentControllerTest {
                 .content("""
                         {
                           "doctorId": %d,
-                          "patientId": 10,
                           "appointmentDate": "%s",
                           "startTime": "08:00"
                         }
@@ -158,6 +179,7 @@ class AppointmentControllerTest {
                         .value("Doctor not found with id: 999"));
 
         verify(appointmentService).createAppointment(
+                eq(actor),
                 any(AppointmentCreateRequest.class));
     }
 
@@ -166,6 +188,7 @@ class AppointmentControllerTest {
         LocalDate appointmentDate = LocalDate.now().plusDays(1);
 
         when(appointmentService.createAppointment(
+                eq(actor),
                 any(AppointmentCreateRequest.class)))
                 .thenThrow(new AppointmentInPastException());
 
@@ -174,7 +197,6 @@ class AppointmentControllerTest {
                 .content("""
                         {
                           "doctorId": 3,
-                          "patientId": 10,
                           "appointmentDate": "%s",
                           "startTime": "08:00"
                         }
@@ -184,6 +206,7 @@ class AppointmentControllerTest {
                         .value("Appointment date and time must not be in the past."));
 
         verify(appointmentService).createAppointment(
+                eq(actor),
                 any(AppointmentCreateRequest.class));
     }
 
@@ -201,18 +224,17 @@ class AppointmentControllerTest {
                 LocalTime.of(8, 30),
                 AppointmentStatus.BOOKED);
 
-        when(appointmentService.getAppointmentsForPatient(patientId))
+        when(appointmentService.getAppointmentsForPatient(actor))
                 .thenReturn(List.of(response));
 
-        mockMvc.perform(get("/api/appointments")
-                .param("patientId", patientId.toString()))
+        mockMvc.perform(get("/api/appointments"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(1))
                 .andExpect(jsonPath("$[0].doctorId").value(3))
                 .andExpect(jsonPath("$[0].patientId").value(10))
                 .andExpect(jsonPath("$[0].status").value("BOOKED"));
 
-        verify(appointmentService).getAppointmentsForPatient(patientId);
+        verify(appointmentService).getAppointmentsForPatient(actor);
     }
 
     @Test
@@ -229,7 +251,7 @@ class AppointmentControllerTest {
                 LocalTime.of(8, 30),
                 AppointmentStatus.CANCELLED);
 
-        when(appointmentService.cancelAppointment(appointmentId))
+        when(appointmentService.cancelAppointment(actor, appointmentId))
                 .thenReturn(response);
 
         mockMvc.perform(patch("/api/appointments/{appointmentId}/cancel", appointmentId))
@@ -237,14 +259,14 @@ class AppointmentControllerTest {
                 .andExpect(jsonPath("$.id").value(appointmentId))
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
 
-        verify(appointmentService).cancelAppointment(appointmentId);
+        verify(appointmentService).cancelAppointment(actor, appointmentId);
     }
 
     @Test
     void shouldReturnNotFoundWhenCancellingAppointmentThatDoesNotExist() throws Exception {
         Long appointmentId = 999L;
 
-        when(appointmentService.cancelAppointment(appointmentId))
+        when(appointmentService.cancelAppointment(actor, appointmentId))
                 .thenThrow(new AppointmentNotFoundException(appointmentId));
 
         mockMvc.perform(patch("/api/appointments/{appointmentId}/cancel", appointmentId))
@@ -252,14 +274,14 @@ class AppointmentControllerTest {
                 .andExpect(jsonPath("$.message")
                         .value("Appointment not found with id: 999"));
 
-        verify(appointmentService).cancelAppointment(appointmentId);
+        verify(appointmentService).cancelAppointment(actor, appointmentId);
     }
 
     @Test
     void shouldReturnConflictWhenCancellingAppointmentThatIsNotBooked() throws Exception {
         Long appointmentId = 1L;
 
-        when(appointmentService.cancelAppointment(appointmentId))
+        when(appointmentService.cancelAppointment(actor, appointmentId))
                 .thenThrow(new AppointmentCancellationNotAllowedException());
 
         mockMvc.perform(patch("/api/appointments/{appointmentId}/cancel", appointmentId))
@@ -267,14 +289,14 @@ class AppointmentControllerTest {
                 .andExpect(jsonPath("$.message")
                         .value("Only booked appointments can be cancelled."));
 
-        verify(appointmentService).cancelAppointment(appointmentId);
+        verify(appointmentService).cancelAppointment(actor, appointmentId);
     }
 
     @Test
     void shouldReturnConflictWhenCancellingAppointmentAtOrAfterStartTime() throws Exception {
         Long appointmentId = 1L;
 
-        when(appointmentService.cancelAppointment(appointmentId))
+        when(appointmentService.cancelAppointment(actor, appointmentId))
                 .thenThrow(new AppointmentCancellationDeadlinePassedException());
 
         mockMvc.perform(patch("/api/appointments/{appointmentId}/cancel", appointmentId))
@@ -282,7 +304,7 @@ class AppointmentControllerTest {
                 .andExpect(jsonPath("$.message")
                         .value("Appointments cannot be cancelled at or after their start time."));
 
-        verify(appointmentService).cancelAppointment(appointmentId);
+        verify(appointmentService).cancelAppointment(actor, appointmentId);
     }
 
     @ParameterizedTest

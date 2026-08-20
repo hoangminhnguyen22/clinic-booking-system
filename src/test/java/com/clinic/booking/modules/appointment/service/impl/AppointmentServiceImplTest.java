@@ -3,6 +3,7 @@ package com.clinic.booking.modules.appointment.service.impl;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -16,6 +17,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,6 +48,10 @@ import com.clinic.booking.modules.availability.service.AvailabilityService;
 import com.clinic.booking.modules.doctor.entity.Doctor;
 import com.clinic.booking.modules.doctor.exception.DoctorNotFoundException;
 import com.clinic.booking.modules.doctor.repository.DoctorRepository;
+import com.clinic.booking.modules.authentication.principal.AuthenticatedActor;
+import com.clinic.booking.modules.patient.entity.PatientProfile;
+import com.clinic.booking.modules.patient.repository.PatientProfileRepository;
+import com.clinic.booking.modules.user.entity.Role;
 
 @ExtendWith(MockitoExtension.class)
 class AppointmentServiceImplTest {
@@ -62,7 +68,16 @@ class AppointmentServiceImplTest {
     @Mock
     private AppointmentMapper appointmentMapper;
 
+    @Mock
+    private PatientProfileRepository patientProfileRepository;
+
     private AppointmentServiceImpl appointmentService;
+
+    private final AuthenticatedActor actor = new AuthenticatedActor(42L, Set.of(Role.PATIENT));
+
+    private final Long patientId = 10L;
+
+    private PatientProfile patientProfile;
 
     private final Clock clock = Clock.fixed(
             Instant.parse("2026-08-03T02:00:00Z"),
@@ -70,11 +85,18 @@ class AppointmentServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        patientProfile = new PatientProfile();
+        patientProfile.setId(patientId);
+
+        lenient().when(patientProfileRepository.findByUserId(actor.userId()))
+                .thenReturn(Optional.of(patientProfile));
+
         appointmentService = new AppointmentServiceImpl(
                 appointmentMapper,
                 appointmentRepository,
                 doctorRepository,
                 availabilityService,
+                patientProfileRepository,
                 clock);
     }
 
@@ -88,7 +110,6 @@ class AppointmentServiceImplTest {
 
         AppointmentCreateRequest request = new AppointmentCreateRequest(
                 doctorId,
-                patientId,
                 appointmentDate,
                 startTime);
 
@@ -133,7 +154,7 @@ class AppointmentServiceImplTest {
                         AppointmentStatus.BOOKED))
                 .thenReturn(false);
 
-        when(appointmentMapper.toEntity(request, doctor, endTime))
+        when(appointmentMapper.toEntity(request, doctor, patientId, endTime))
                 .thenReturn(appointment);
 
         when(appointmentRepository.saveAndFlush(appointment))
@@ -143,7 +164,7 @@ class AppointmentServiceImplTest {
                 .thenReturn(expectedResponse);
 
         AppointmentResponse actualResponse = appointmentService
-                .createAppointment(request);
+                .createAppointment(actor, request);
 
         assertEquals(expectedResponse, actualResponse);
 
@@ -158,13 +179,12 @@ class AppointmentServiceImplTest {
     void shouldThrowExceptionWhenAppointmentTimeIsInPast() {
         AppointmentCreateRequest request = new AppointmentCreateRequest(
                 3L,
-                10L,
                 LocalDate.of(2026, 8, 2),
                 LocalTime.of(8, 0));
 
         assertThrows(
                 AppointmentInPastException.class,
-                () -> appointmentService.createAppointment(request));
+                () -> appointmentService.createAppointment(actor, request));
 
         verifyNoInteractions(
                 appointmentRepository,
@@ -180,7 +200,6 @@ class AppointmentServiceImplTest {
 
         AppointmentCreateRequest request = new AppointmentCreateRequest(
                 doctorId,
-                10L,
                 appointmentDate,
                 LocalTime.of(9, 0));
 
@@ -202,7 +221,7 @@ class AppointmentServiceImplTest {
 
         assertThrows(
                 AppointmentSlotUnavailableException.class,
-                () -> appointmentService.createAppointment(request));
+                () -> appointmentService.createAppointment(actor, request));
 
         verifyNoInteractions(
                 appointmentRepository,
@@ -218,7 +237,6 @@ class AppointmentServiceImplTest {
 
         AppointmentCreateRequest request = new AppointmentCreateRequest(
                 doctorId,
-                10L,
                 appointmentDate,
                 startTime);
 
@@ -248,7 +266,7 @@ class AppointmentServiceImplTest {
 
         assertThrows(
                 AppointmentSlotUnavailableException.class,
-                () -> appointmentService.createAppointment(request));
+                () -> appointmentService.createAppointment(actor, request));
 
         verify(appointmentRepository, never()).saveAndFlush(any());
         verifyNoInteractions(appointmentMapper);
@@ -260,7 +278,6 @@ class AppointmentServiceImplTest {
 
         AppointmentCreateRequest request = new AppointmentCreateRequest(
                 doctorId,
-                10L,
                 LocalDate.of(2026, 8, 4),
                 LocalTime.of(8, 0));
 
@@ -269,7 +286,7 @@ class AppointmentServiceImplTest {
 
         assertThrows(
                 DoctorNotFoundException.class,
-                () -> appointmentService.createAppointment(request));
+                () -> appointmentService.createAppointment(actor, request));
 
         verifyNoInteractions(
                 appointmentRepository,
@@ -286,7 +303,6 @@ class AppointmentServiceImplTest {
 
         AppointmentCreateRequest request = new AppointmentCreateRequest(
                 doctorId,
-                10L,
                 appointmentDate,
                 startTime);
 
@@ -316,7 +332,7 @@ class AppointmentServiceImplTest {
                         AppointmentStatus.BOOKED))
                 .thenReturn(false);
 
-        when(appointmentMapper.toEntity(request, doctor, endTime))
+        when(appointmentMapper.toEntity(request, doctor, patientId, endTime))
                 .thenReturn(appointment);
 
         when(appointmentRepository.saveAndFlush(appointment))
@@ -325,7 +341,7 @@ class AppointmentServiceImplTest {
 
         assertThrows(
                 AppointmentSlotUnavailableException.class,
-                () -> appointmentService.createAppointment(request));
+                () -> appointmentService.createAppointment(actor, request));
 
         verify(appointmentMapper, never()).toResponse(any());
     }
@@ -371,7 +387,7 @@ class AppointmentServiceImplTest {
                 .thenReturn(secondResponse);
 
         List<AppointmentResponse> responses = appointmentService
-                .getAppointmentsForPatient(patientId);
+                .getAppointmentsForPatient(actor);
 
         assertEquals(
                 List.of(firstResponse, secondResponse),
@@ -414,7 +430,7 @@ class AppointmentServiceImplTest {
                 .thenReturn(expectedResponse);
 
         AppointmentResponse actualResponse = appointmentService
-                .cancelAppointment(appointmentId);
+                .cancelAppointment(actor, appointmentId);
 
         assertEquals(expectedResponse, actualResponse);
         assertEquals(AppointmentStatus.CANCELLED, appointment.getStatus());
@@ -432,7 +448,7 @@ class AppointmentServiceImplTest {
 
         assertThrows(
                 AppointmentNotFoundException.class,
-                () -> appointmentService.cancelAppointment(appointmentId));
+                () -> appointmentService.cancelAppointment(actor, appointmentId));
 
         verify(appointmentRepository).findById(appointmentId);
         verifyNoMoreInteractions(appointmentRepository);
@@ -445,6 +461,7 @@ class AppointmentServiceImplTest {
 
         Appointment appointment = new Appointment();
         appointment.setId(appointmentId);
+        appointment.setPatientId(patientId);
         appointment.setStatus(AppointmentStatus.CANCELLED);
 
         when(appointmentRepository.findById(appointmentId))
@@ -452,7 +469,7 @@ class AppointmentServiceImplTest {
 
         assertThrows(
                 AppointmentCancellationNotAllowedException.class,
-                () -> appointmentService.cancelAppointment(appointmentId));
+                () -> appointmentService.cancelAppointment(actor, appointmentId));
 
         assertEquals(AppointmentStatus.CANCELLED, appointment.getStatus());
 
@@ -467,6 +484,7 @@ class AppointmentServiceImplTest {
 
         Appointment appointment = new Appointment();
         appointment.setId(appointmentId);
+        appointment.setPatientId(patientId);
         appointment.setAppointmentDate(LocalDate.of(2026, 8, 2));
         appointment.setStartTime(LocalTime.of(8, 0));
         appointment.setStatus(AppointmentStatus.BOOKED);
@@ -476,7 +494,7 @@ class AppointmentServiceImplTest {
 
         assertThrows(
                 AppointmentCancellationDeadlinePassedException.class,
-                () -> appointmentService.cancelAppointment(appointmentId));
+                () -> appointmentService.cancelAppointment(actor, appointmentId));
 
         assertEquals(AppointmentStatus.BOOKED, appointment.getStatus());
 
@@ -712,6 +730,7 @@ class AppointmentServiceImplTest {
 
         Appointment appointment = new Appointment();
         appointment.setId(appointmentId);
+        appointment.setPatientId(patientId);
         appointment.setAppointmentDate(LocalDate.of(2026, 8, 3));
         appointment.setStartTime(LocalTime.of(9, 0));
         appointment.setStatus(AppointmentStatus.BOOKED);
@@ -721,7 +740,7 @@ class AppointmentServiceImplTest {
 
         assertThrows(
                 AppointmentCancellationDeadlinePassedException.class,
-                () -> appointmentService.cancelAppointment(appointmentId));
+                () -> appointmentService.cancelAppointment(actor, appointmentId));
 
         assertEquals(AppointmentStatus.BOOKED, appointment.getStatus());
 
@@ -740,7 +759,6 @@ class AppointmentServiceImplTest {
 
         AppointmentCreateRequest request = new AppointmentCreateRequest(
                 doctorId,
-                patientId,
                 appointmentDate,
                 startTime);
 
@@ -779,14 +797,14 @@ class AppointmentServiceImplTest {
                 startTime,
                 AppointmentStatus.BOOKED))
                 .thenReturn(false);
-        when(appointmentMapper.toEntity(request, doctor, endTime))
+        when(appointmentMapper.toEntity(request, doctor, patientId, endTime))
                 .thenReturn(appointment);
         when(appointmentRepository.saveAndFlush(appointment))
                 .thenReturn(appointment);
         when(appointmentMapper.toResponse(appointment))
                 .thenReturn(expectedResponse);
 
-        AppointmentResponse actualResponse = appointmentService.createAppointment(request);
+        AppointmentResponse actualResponse = appointmentService.createAppointment(actor, request);
 
         assertEquals(expectedResponse, actualResponse);
         verify(appointmentRepository).saveAndFlush(appointment);
