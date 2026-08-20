@@ -9,10 +9,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
+import com.clinic.booking.modules.authentication.principal.AuthenticatedActor;
 import com.clinic.booking.modules.appointment.dto.request.AppointmentCreateRequest;
 import com.clinic.booking.modules.appointment.dto.request.AppointmentStatusUpdateRequest;
 import com.clinic.booking.modules.appointment.dto.response.AppointmentResponse;
@@ -33,21 +34,24 @@ public class AppointmentController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public AppointmentResponse createAppointment(
+            @AuthenticationPrincipal AuthenticatedActor actor,
             @Valid @RequestBody AppointmentCreateRequest request) {
 
-        return appointmentService.createAppointment(request);
+        return appointmentService.createAppointment(actor, request);
     }
 
     @GetMapping
-    public List<AppointmentResponse> getAppointmentsForPatient(@RequestParam("patientId") Long patientId) {
-        return appointmentService.getAppointmentsForPatient(patientId);
+    public List<AppointmentResponse> getAppointmentsForPatient(
+            @AuthenticationPrincipal AuthenticatedActor actor) {
+        return appointmentService.getAppointmentsForPatient(actor);
     }
 
     @PatchMapping("/{appointmentId}/cancel")
     public AppointmentResponse cancelAppointment(
+            @AuthenticationPrincipal AuthenticatedActor actor,
             @PathVariable("appointmentId") Long appointmentId) {
 
-        return appointmentService.cancelAppointment(appointmentId);
+        return appointmentService.cancelAppointment(actor, appointmentId);
     }
 
     @PatchMapping("/{appointmentId}/status")

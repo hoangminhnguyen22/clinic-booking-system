@@ -11,10 +11,10 @@ import com.clinic.booking.modules.doctor.entity.Doctor;
 
 @Component
 public class AppointmentMapper {
-    public Appointment toEntity(AppointmentCreateRequest request, Doctor doctor, LocalTime endTime) {
+    public Appointment toEntity(AppointmentCreateRequest request, Doctor doctor, Long patientId, LocalTime endTime) {
         Appointment appointment = new Appointment();
         appointment.setDoctor(doctor);
-        appointment.setPatientId(request.patientId());
+        appointment.setPatientId(patientId);
         appointment.setAppointmentDate(request.appointmentDate());
         appointment.setStartTime(request.startTime());
         appointment.setEndTime(endTime);

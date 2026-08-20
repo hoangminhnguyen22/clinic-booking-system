@@ -2,6 +2,7 @@ package com.clinic.booking.modules.appointment.service.impl;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -28,7 +29,9 @@ import com.clinic.booking.modules.availability.service.AvailabilityService;
 import com.clinic.booking.modules.doctor.entity.Doctor;
 import com.clinic.booking.modules.doctor.exception.DoctorNotFoundException;
 import com.clinic.booking.modules.doctor.repository.DoctorRepository;
-import org.springframework.dao.DataIntegrityViolationException;
+import com.clinic.booking.modules.authentication.principal.AuthenticatedActor;
+import com.clinic.booking.modules.patient.entity.PatientProfile;
+import com.clinic.booking.modules.patient.repository.PatientProfileRepository;
 
 @Service
 public class AppointmentServiceImpl implements AppointmentService {
@@ -37,6 +40,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final AppointmentRepository appointmentRepository;
     private final DoctorRepository doctorRepository;
     private final AvailabilityService availabilityService;
+    private final PatientProfileRepository patientProfileRepository;
     private final Clock clock;
 
     public AppointmentServiceImpl(
@@ -44,17 +48,24 @@ public class AppointmentServiceImpl implements AppointmentService {
             AppointmentRepository appointmentRepository,
             DoctorRepository doctorRepository,
             AvailabilityService availabilityService,
+            PatientProfileRepository patientProfileRepository,
             Clock clock) {
         this.appointmentMapper = appointmentMapper;
         this.appointmentRepository = appointmentRepository;
         this.doctorRepository = doctorRepository;
         this.availabilityService = availabilityService;
+        this.patientProfileRepository = patientProfileRepository;
         this.clock = clock;
     }
 
     @Override
     @Transactional
-    public AppointmentResponse createAppointment(AppointmentCreateRequest request) {
+    public AppointmentResponse createAppointment(AuthenticatedActor actor, AppointmentCreateRequest request) {
+        PatientProfile patientProfile = patientProfileRepository
+                .findByUserId(actor.userId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "Authenticated patient has no patient profile."));
+
         LocalDateTime appointmentDateTime = LocalDateTime.of(
                 request.appointmentDate(),
                 request.startTime());
@@ -90,6 +101,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         Appointment appointment = appointmentMapper.toEntity(
                 request,
                 doctor,
+                patientProfile.getId(),
                 availableSlot.endTime());
 
         // Với Appointment, double-booking là rule quan trọng nên cần thêm lớp fallback
@@ -107,8 +119,13 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<AppointmentResponse> getAppointmentsForPatient(Long patientId) {
-        return appointmentRepository.findByPatientIdOrderByAppointmentDateAscStartTimeAsc(patientId)
+    public List<AppointmentResponse> getAppointmentsForPatient(AuthenticatedActor actor) {
+        PatientProfile patientProfile = patientProfileRepository
+                .findByUserId(actor.userId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "Authenticated patient has no patient profile."));
+
+        return appointmentRepository.findByPatientIdOrderByAppointmentDateAscStartTimeAsc(patientProfile.getId())
                 .stream()
                 .map(appointmentMapper::toResponse)
                 .toList();
@@ -116,10 +133,19 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Override
     @Transactional
-    public AppointmentResponse cancelAppointment(Long appointmentId) {
+    public AppointmentResponse cancelAppointment(AuthenticatedActor actor, Long appointmentId) {
         @SuppressWarnings("null")
         Appointment appointment = appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new AppointmentNotFoundException(appointmentId));
+
+        PatientProfile patientProfile = patientProfileRepository
+                .findByUserId(actor.userId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "Authenticated patient has no patient profile."));
+
+        if (!appointment.getPatientId().equals(patientProfile.getId())) {
+            throw new AppointmentNotFoundException(appointmentId);
+        }
 
         if (appointment.getStatus() != AppointmentStatus.BOOKED) {
             throw new AppointmentCancellationNotAllowedException();
