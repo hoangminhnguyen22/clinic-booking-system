@@ -809,4 +809,106 @@ class AppointmentServiceImplTest {
         assertEquals(expectedResponse, actualResponse);
         verify(appointmentRepository).saveAndFlush(appointment);
     }
+
+    @Test
+    void shouldThrowExceptionWhenCreatingAppointmentWithoutPatientProfile() {
+        AppointmentCreateRequest request = new AppointmentCreateRequest(
+                3L,
+                LocalDate.of(2026, 8, 4),
+                LocalTime.of(8, 0));
+
+        when(patientProfileRepository.findByUserId(actor.userId()))
+                .thenReturn(Optional.empty());
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> appointmentService.createAppointment(actor, request));
+
+        assertEquals(
+                "Authenticated patient has no patient profile.",
+                exception.getMessage());
+
+        verify(patientProfileRepository).findByUserId(actor.userId());
+        verifyNoInteractions(
+                appointmentRepository,
+                doctorRepository,
+                availabilityService,
+                appointmentMapper);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenListingAppointmentsWithoutPatientProfile() {
+        when(patientProfileRepository.findByUserId(actor.userId()))
+                .thenReturn(Optional.empty());
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> appointmentService.getAppointmentsForPatient(actor));
+
+        assertEquals(
+                "Authenticated patient has no patient profile.",
+                exception.getMessage());
+
+        verify(patientProfileRepository).findByUserId(actor.userId());
+        verifyNoInteractions(
+                appointmentRepository,
+                appointmentMapper);
+    }
+
+    @Test
+    void shouldThrowExceptionWhenCancellingWithoutPatientProfile() {
+        Long appointmentId = 1L;
+
+        Appointment appointment = new Appointment();
+        appointment.setId(appointmentId);
+        appointment.setStatus(AppointmentStatus.BOOKED);
+
+        when(appointmentRepository.findById(appointmentId))
+                .thenReturn(Optional.of(appointment));
+
+        when(patientProfileRepository.findByUserId(actor.userId()))
+                .thenReturn(Optional.empty());
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> appointmentService.cancelAppointment(actor, appointmentId));
+
+        assertEquals(
+                "Authenticated patient has no patient profile.",
+                exception.getMessage());
+        assertEquals(AppointmentStatus.BOOKED, appointment.getStatus());
+
+        verify(appointmentRepository).findById(appointmentId);
+        verify(patientProfileRepository).findByUserId(actor.userId());
+        verifyNoMoreInteractions(appointmentRepository);
+        verifyNoInteractions(appointmentMapper);
+    }
+
+    @Test
+    void shouldThrowNotFoundWhenCancellingAnotherPatientsAppointment() {
+        Long appointmentId = 1L;
+        Long anotherPatientId = 20L;
+
+        Appointment appointment = new Appointment();
+        appointment.setId(appointmentId);
+        appointment.setPatientId(anotherPatientId);
+        appointment.setStatus(AppointmentStatus.BOOKED);
+
+        when(appointmentRepository.findById(appointmentId))
+                .thenReturn(Optional.of(appointment));
+
+        AppointmentNotFoundException exception = assertThrows(
+                AppointmentNotFoundException.class,
+                () -> appointmentService.cancelAppointment(actor, appointmentId));
+
+        assertEquals(
+                "Appointment not found with id: " + appointmentId,
+                exception.getMessage());
+        assertEquals(AppointmentStatus.BOOKED, appointment.getStatus());
+
+        verify(appointmentRepository).findById(appointmentId);
+        verify(patientProfileRepository).findByUserId(actor.userId());
+        verifyNoMoreInteractions(appointmentRepository);
+        verifyNoInteractions(appointmentMapper);
+    }
 }

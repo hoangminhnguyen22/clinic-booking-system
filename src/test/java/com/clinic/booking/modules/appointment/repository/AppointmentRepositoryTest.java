@@ -1,10 +1,12 @@
 package com.clinic.booking.modules.appointment.repository;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 import jakarta.persistence.EntityManager;
 
@@ -19,7 +21,9 @@ import org.springframework.test.context.ActiveProfiles;
 import com.clinic.booking.modules.appointment.entity.Appointment;
 import com.clinic.booking.modules.appointment.entity.AppointmentStatus;
 import com.clinic.booking.modules.doctor.entity.Doctor;
+import com.clinic.booking.modules.patient.entity.PatientProfile;
 import com.clinic.booking.modules.specialty.entity.Specialty;
+import com.clinic.booking.modules.user.entity.User;
 
 @DataJpaTest
 @ActiveProfiles("test")
@@ -42,6 +46,16 @@ class AppointmentRepositoryTest {
         doctor.setEmail("anna.nguyen@example.com");
         doctor.setSpecialty(specialty);
         entityManager.persist(doctor);
+
+        User user = new User();
+        user.setEmail("patient.one@example.com");
+        user.setPasswordHash("test-password-hash");
+        entityManager.persist(user);
+
+        PatientProfile patientProfile = new PatientProfile();
+        patientProfile.setUser(user);
+        entityManager.persist(patientProfile);
+
         entityManager.flush();
 
         LocalDate appointmentDate = LocalDate.now().plusDays(1);
@@ -49,7 +63,7 @@ class AppointmentRepositoryTest {
 
         Appointment firstAppointment = createAppointment(
                 doctor,
-                10L,
+                patientProfile.getId(),
                 appointmentDate,
                 startTime);
 
@@ -57,7 +71,7 @@ class AppointmentRepositoryTest {
 
         Appointment duplicateAppointment = createAppointment(
                 doctor,
-                20L,
+                patientProfile.getId(),
                 appointmentDate,
                 startTime);
 
@@ -93,6 +107,25 @@ class AppointmentRepositoryTest {
         doctor.setEmail("minh.tran@example.com");
         doctor.setSpecialty(specialty);
         entityManager.persist(doctor);
+
+        User firstUser = new User();
+        firstUser.setEmail("cancelled.patient@example.com");
+        firstUser.setPasswordHash("test-password-hash");
+        entityManager.persist(firstUser);
+
+        PatientProfile firstPatientProfile = new PatientProfile();
+        firstPatientProfile.setUser(firstUser);
+        entityManager.persist(firstPatientProfile);
+
+        User secondUser = new User();
+        secondUser.setEmail("new.patient@example.com");
+        secondUser.setPasswordHash("test-password-hash");
+        entityManager.persist(secondUser);
+
+        PatientProfile secondPatientProfile = new PatientProfile();
+        secondPatientProfile.setUser(secondUser);
+        entityManager.persist(secondPatientProfile);
+
         entityManager.flush();
 
         LocalDate appointmentDate = LocalDate.now().plusDays(1);
@@ -100,7 +133,7 @@ class AppointmentRepositoryTest {
 
         Appointment cancelledAppointment = createAppointment(
                 doctor,
-                10L,
+                firstPatientProfile.getId(),
                 appointmentDate,
                 startTime);
         cancelledAppointment.setStatus(AppointmentStatus.CANCELLED);
@@ -109,11 +142,70 @@ class AppointmentRepositoryTest {
 
         Appointment bookedAppointment = createAppointment(
                 doctor,
-                20L,
+                secondPatientProfile.getId(),
                 appointmentDate,
                 startTime);
 
         assertDoesNotThrow(
                 () -> appointmentRepository.saveAndFlush(bookedAppointment));
+    }
+
+    @Test
+    void shouldReturnOnlyAppointmentsOwnedByRequestedPatient() {
+        Specialty specialty = new Specialty("Cardiology");
+        entityManager.persist(specialty);
+
+        Doctor doctor = new Doctor();
+        doctor.setFullName("Dr. Lan Pham");
+        doctor.setEmail("lan.pham@example.com");
+        doctor.setSpecialty(specialty);
+        entityManager.persist(doctor);
+
+        User firstUser = new User();
+        firstUser.setEmail("first.owner@example.com");
+        firstUser.setPasswordHash("test-password-hash");
+        entityManager.persist(firstUser);
+
+        PatientProfile firstPatientProfile = new PatientProfile();
+        firstPatientProfile.setUser(firstUser);
+        entityManager.persist(firstPatientProfile);
+
+        User secondUser = new User();
+        secondUser.setEmail("second.owner@example.com");
+        secondUser.setPasswordHash("test-password-hash");
+        entityManager.persist(secondUser);
+
+        PatientProfile secondPatientProfile = new PatientProfile();
+        secondPatientProfile.setUser(secondUser);
+        entityManager.persist(secondPatientProfile);
+
+        entityManager.flush();
+
+        LocalDate appointmentDate = LocalDate.now().plusDays(1);
+
+        Appointment firstAppointment = createAppointment(
+                doctor,
+                firstPatientProfile.getId(),
+                appointmentDate,
+                LocalTime.of(10, 0));
+
+        Appointment secondAppointment = createAppointment(
+                doctor,
+                secondPatientProfile.getId(),
+                appointmentDate,
+                LocalTime.of(11, 0));
+
+        appointmentRepository.saveAndFlush(firstAppointment);
+        appointmentRepository.saveAndFlush(secondAppointment);
+
+        List<Appointment> appointments = appointmentRepository
+                .findByPatientIdOrderByAppointmentDateAscStartTimeAsc(
+                        firstPatientProfile.getId());
+
+        assertEquals(1, appointments.size());
+        assertEquals(firstAppointment.getId(), appointments.get(0).getId());
+        assertEquals(
+                firstPatientProfile.getId(),
+                appointments.get(0).getPatientId());
     }
 }
