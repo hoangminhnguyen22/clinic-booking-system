@@ -94,9 +94,18 @@ class AppointmentStatusUpdateIntegrationTest {
         doctor.setSpecialty(specialty);
         entityManager.persist(doctor);
 
+        User user = new User();
+        user.setEmail("no-show.patient@example.com");
+        user.setPasswordHash("test-password-hash");
+        entityManager.persist(user);
+
+        PatientProfile patientProfile = new PatientProfile();
+        patientProfile.setUser(user);
+        entityManager.persist(patientProfile);
+
         Appointment appointment = new Appointment();
         appointment.setDoctor(doctor);
-        appointment.setPatientId(11L);
+        appointment.setPatientId(patientProfile.getId());
         appointment.setAppointmentDate(LocalDate.now().minusDays(1));
         appointment.setStartTime(LocalTime.of(9, 0));
         appointment.setEndTime(LocalTime.of(9, 30));
