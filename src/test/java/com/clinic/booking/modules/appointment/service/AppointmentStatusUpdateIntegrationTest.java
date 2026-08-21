@@ -18,7 +18,9 @@ import com.clinic.booking.modules.appointment.entity.Appointment;
 import com.clinic.booking.modules.appointment.entity.AppointmentStatus;
 import com.clinic.booking.modules.appointment.repository.AppointmentRepository;
 import com.clinic.booking.modules.doctor.entity.Doctor;
+import com.clinic.booking.modules.patient.entity.PatientProfile;
 import com.clinic.booking.modules.specialty.entity.Specialty;
+import com.clinic.booking.modules.user.entity.User;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -45,9 +47,18 @@ class AppointmentStatusUpdateIntegrationTest {
         doctor.setSpecialty(specialty);
         entityManager.persist(doctor);
 
+        User user = new User();
+        user.setEmail("completed.patient@example.com");
+        user.setPasswordHash("test-password-hash");
+        entityManager.persist(user);
+
+        PatientProfile patientProfile = new PatientProfile();
+        patientProfile.setUser(user);
+        entityManager.persist(patientProfile);
+
         Appointment appointment = new Appointment();
         appointment.setDoctor(doctor);
-        appointment.setPatientId(10L);
+        appointment.setPatientId(patientProfile.getId());
         appointment.setAppointmentDate(LocalDate.now().minusDays(1));
         appointment.setStartTime(LocalTime.of(8, 0));
         appointment.setEndTime(LocalTime.of(8, 30));
